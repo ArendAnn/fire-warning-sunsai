@@ -69,6 +69,11 @@
             font-family: 'Sarabun', sans-serif !important;
             background: #0b1120;
         }
+        #map {
+            width: 100%;
+            height: 100%;
+            min-height: 450px;
+        }
         @keyframes pulse-ring {
             0% { transform: scale(0.8); opacity: 0.8; }
             80%, 100% { transform: scale(2.4); opacity: 0; }
@@ -98,7 +103,7 @@
             <div>
                 <div class="flex items-center gap-2">
                     <h1 class="text-base md:text-lg font-bold tracking-wide text-white">ศูนย์ปฏิบัติการเฝ้าระวังและควบคุมไฟป่า อำเภอสันทราย</h1>
-                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-red-500/20 text-red-400 border border-red-500/30 rounded-full">ไฟป่า 2570</span>
+                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">ไฟป่า 2570 • v2.5</span>
                 </div>
                 <p class="text-xs text-slate-400">กองร้อยอาสารักษาดินแดนอำเภอสันทราย ที่ 15 • ระบบแผนที่ยุทธวิธี & ดาวเทียม NOAA (VIIRS)</p>
             </div>
@@ -202,7 +207,7 @@
                         </h3>
                         <div class="grid grid-cols-3 gap-2 text-xs">
                             <button onclick="setBaseMap('satellite')" id="bm-satellite" class="py-2 px-2 rounded-lg bg-orange-500/20 border border-orange-500 text-orange-300 font-semibold transition">
-                                ดาวเทียม (Esri)
+                                ดาวเทียม (NOAA)
                             </button>
                             <button onclick="setBaseMap('topo')" id="bm-topo" class="py-2 px-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition">
                                 ภูมิประเทศ
@@ -218,6 +223,23 @@
                         <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                             <i class="fa-solid fa-eye text-emerald-400"></i> เปิด/ปิด ชั้นข้อมูลบนแผนที่
                         </h3>
+
+                        <!-- ชั้นข้อมูลพิกัดกำลังพล 11-Bel (OwnTracks) -->
+                        <div class="p-2.5 rounded-lg bg-slate-900/80 border border-blue-500/40 space-y-1.5">
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <div class="flex items-center gap-2.5">
+                                    <input type="checkbox" id="chkPersonnel" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                    <span class="text-xs font-semibold text-amber-300">พิกัดกำลังพล & เฝ้าระวัง (11-Bel)</span>
+                                </div>
+                                <span class="w-3 h-3 rounded-full bg-blue-500 ring-2 ring-blue-400/40 animate-pulse"></span>
+                            </label>
+                            <div class="flex items-center justify-between text-[11px] pl-6">
+                                <span id="personnelStatusText" class="text-emerald-400 font-medium">• พร้อมแสดงพิกัด 11-Bel</span>
+                                <button type="button" onclick="zoomToPersonnel()" class="text-sky-400 hover:text-sky-300 underline flex items-center gap-1">
+                                    <i class="fa-solid fa-location-crosshairs"></i> ซูมหาหมุด
+                                </button>
+                            </div>
+                        </div>
                         
                         <label class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-slate-800">
                             <div class="flex items-center gap-2.5">
@@ -843,6 +865,11 @@ jobs:
 
         let simModeActive = false;
         let selectedStrategicCat = "ALL";
+        let currentPersonnelLatLng = [18.848664, 99.045397];
+        let personnelMarker = null;
+
+        // URL ของ Google Apps Script สำหรับดึงพิกัด OwnTracks (11-Bel)
+        const GAS_WEBAPP_URL = localStorage.getItem("SANSAI_GAS_URL") || "";
 
         window.onload = function() {
             initMap();
@@ -853,20 +880,26 @@ jobs:
             renderTambonSummaryBars();
             fetchAllWeather();
 
+            // แสดงหมุดกำลังพลเริ่มต้น (11-Bel) ทันที และดึงข้อมูลอัปเดตทุก 10 วินาที
             updatePersonnelMarkerOnMap(18.848664, 99.045397, "11-Bel", "ล่าสุด", 55, "ปฏิบัติงาน (OwnTracks)");
             loadPersonnelLocations();
             setInterval(loadPersonnelLocations, 10000);
 
-            // บังคับให้แผนที่เรนเดอร์ขนาดให้พอดีหน้าจอทันที
+            // บังคับให้แผนที่เรนเดอร์ขนาดให้พอดีหน้าจอทันที (แก้ปัญหาหน้าจอดำ)
             setTimeout(() => {
                 if (map) map.invalidateSize();
             }, 300);
 
+            // โหลด API Key ที่เคยบันทึกไว้
             const savedKey = localStorage.getItem("SANSAI_GISTDA_KEY");
             if (savedKey) {
                 document.getElementById("gistdaApiKeyInput").value = savedKey;
             }
         };
+
+        window.addEventListener('resize', () => {
+            if (map) map.invalidateSize();
+        });
 
         function initMap() {
             map = L.map('map', {
@@ -904,6 +937,78 @@ jobs:
             });
         }
 
+        function updatePersonnelMarkerOnMap(lat, lng, name, timeStr, batt, status) {
+            if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
+            currentPersonnelLatLng = [lat, lng];
+            layerPersonnel.clearLayers();
+
+            const personIcon = L.divIcon({
+                className: 'personnel-marker-icon',
+                html: `
+                    <div class="relative flex flex-col items-center">
+                        <div class="px-2 py-0.5 mb-1 rounded-full bg-blue-600 text-white text-[10px] font-bold shadow-md border border-white whitespace-nowrap">
+                            <i class="fa-solid fa-walkie-talkie mr-1"></i>${name} (${batt || '--'}%)
+                        </div>
+                        <div class="w-8 h-8 rounded-full bg-blue-600 border-2 border-white shadow-xl flex items-center justify-center text-white">
+                            <i class="fa-solid fa-user-shield text-xs"></i>
+                        </div>
+                    </div>
+                `,
+                iconSize: [90, 52],
+                iconAnchor: [45, 42]
+            });
+
+            personnelMarker = L.marker([lat, lng], { icon: personIcon });
+            personnelMarker.bindPopup(`
+                <div class="p-1.5 min-w-[210px] space-y-1 text-xs">
+                    <div class="flex items-center justify-between">
+                        <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold text-[10px]">OwnTracks Live</span>
+                        <span class="text-[11px] text-emerald-400 font-semibold"><i class="fa-solid fa-battery-three-quarters mr-1"></i>${batt || '--'}%</span>
+                    </div>
+                    <div class="text-sm font-bold text-white pt-0.5">รหัสกำลังพล: ${name}</div>
+                    <div class="text-slate-300"><b>สถานะ:</b> ${status || 'ปฏิบัติงาน'}</div>
+                    <div class="text-slate-400 text-[11px]"><b>อัปเดตล่าสุด:</b> ${timeStr || 'เมื่อสักครู่'}</div>
+                    <div class="text-slate-400 text-[11px]"><b>พิกัด:</b> ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}</div>
+                </div>
+            `);
+            layerPersonnel.addLayer(personnelMarker);
+
+            const statusEl = document.getElementById("personnelStatusText");
+            if (statusEl) {
+                statusEl.innerText = `• ${name}: ออนไลน์ (${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)})`;
+            }
+        }
+
+        async function loadPersonnelLocations() {
+            if (!GAS_WEBAPP_URL) return;
+            try {
+                const res = await fetch(GAS_WEBAPP_URL);
+                const data = await res.json();
+                if (data && data.lat && data.lng) {
+                    updatePersonnelMarkerOnMap(
+                        parseFloat(data.lat),
+                        parseFloat(data.lng),
+                        data.user || "11-Bel",
+                        data.timestamp || "ล่าสุด",
+                        data.batt || 100,
+                        data.status || "ปฏิบัติงาน (OwnTracks)"
+                    );
+                }
+            } catch (err) {
+                // หากยังไม่ได้ตั้งค่า URL หรือติด CORS จะคงหมุดพิกัดล่าสุดไว้โดยไม่ทำให้แผนที่ค้าง
+                console.debug("OwnTracks fetch skipped:", err.message);
+            }
+        }
+
+        function zoomToPersonnel() {
+            if (map && currentPersonnelLatLng) {
+                map.flyTo(currentPersonnelLatLng, 16, { duration: 1.0 });
+                if (personnelMarker) {
+                    setTimeout(() => personnelMarker.openPopup(), 1000);
+                }
+            }
+        }
+
         function setBaseMap(type) {
             Object.values(baseMaps).forEach(layer => map.removeLayer(layer));
             baseMaps[type].addTo(map);
@@ -919,12 +1024,13 @@ jobs:
         }
 
         function updateLayers() {
+            const chkP = document.getElementById('chkPersonnel');
+            if (chkP) toggleLayer(layerPersonnel, chkP.checked);
             toggleLayer(layerStrategic, document.getElementById('chkStrategic').checked);
             toggleLayer(layerRoutes, document.getElementById('chkRoutes').checked);
             toggleLayer(layerHotspots, document.getElementById('chkHotspots').checked);
             toggleLayer(layerWind, document.getElementById('chkWind').checked);
             toggleLayer(layerLiveGistda, document.getElementById('chkLiveGistda').checked);
-            toggleLayer(layerPersonnel, true);
         }
 
         function toggleLayer(layer, show) {
@@ -937,33 +1043,6 @@ jobs:
 
         function fitAllBounds() {
             map.flyTo([18.995, 99.035], 12, { duration: 1.2 });
-        }
-
-        function updatePersonnelMarkerOnMap(lat, lng, name, timeStr, batt, status) {
-            layerPersonnel.clearLayers();
-            const personIcon = L.divIcon({
-                className: 'personnel-icon',
-                html: `<div class="w-8 h-8 rounded-full bg-cyan-500 border-2 border-white flex items-center justify-center text-white shadow-xl animate-bounce">
-                        <i class="fa-solid fa-user-shield text-xs"></i>
-                       </div>`,
-                iconSize: [32, 32],
-                iconAnchor: [16, 16]
-            });
-            const marker = L.marker([lat, lng], { icon: personIcon });
-            marker.bindPopup(`
-                <div class="p-1 text-xs space-y-1">
-                    <div class="font-bold text-cyan-400">เจ้าหน้าที่/ชุดปฏิบัติการ: ${name}</div>
-                    <div>สถานะ: <b>${status}</b></div>
-                    <div>แบตเตอรี่: ${batt}% • อัปเดต: ${timeStr}</div>
-                    <div>พิกัด: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
-                </div>
-            `);
-            layerPersonnel.addLayer(marker);
-        }
-
-        function loadPersonnelLocations() {
-            // ฟังก์ชันรองรับการดึงพิกัดติดตามเจ้าหน้าที่ (เช่น 11-Bel) ผ่านระบบสตรีมมิ่งพิกัด
-            console.log("Personnel tracking synced.");
         }
 
         // ============================================================================
@@ -1213,6 +1292,7 @@ jobs:
 
         async function fetchAllWeather() {
             try {
+                // ดึงข้อมูลสถานีหลักโซนกลาง/เขาแม่แฝก พร้อมพยากรณ์รายชั่วโมง
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=19.015&longitude=99.035&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m&timezone=Asia%2FBangkok&forecast_days=2`;
                 const res = await fetch(url);
                 const data = await res.json();
@@ -1223,6 +1303,7 @@ jobs:
                     document.getElementById("navHum").innerText = `${c.relative_humidity_2m}%`;
                     document.getElementById("navWind").innerText = `${c.wind_speed_10m} กม./ชม. (${degreeToThaiCompass(c.wind_direction_10m)})`;
 
+                    // อัปเดตค่าจริงลงในสถานีตรวจวัดทั้ง 5 จุดในสันทราย (ปรับตามระดับความสูงจริง)
                     windStations.forEach((ws, idx) => {
                         ws.temp = +(c.temperature_2m - (idx === 1 ? 1.8 : idx * 0.2)).toFixed(1);
                         ws.hum = Math.min(100, Math.max(15, Math.round(c.relative_humidity_2m + (idx === 1 ? 4 : -1))));
@@ -1246,6 +1327,7 @@ jobs:
         function renderWindVectorsOnMap() {
             layerWind.clearLayers();
             windStations.forEach(ws => {
+                // ทิศที่ลมพัดไป (ทิศทางไฟลาม) = ทิศที่มาของลม + 180 องศา
                 const blowToDeg = (ws.dir + 180) % 360;
                 const windIcon = L.divIcon({
                     className: 'wind-vector-marker',
@@ -1305,6 +1387,7 @@ jobs:
         function render3HourForecastTable(hourly) {
             const tbody = document.getElementById("forecast3HrTable");
             tbody.innerHTML = "";
+            // แสดงผลทุกๆ 3 ชั่วโมง จำนวน 8 รอบ (24 ชั่วโมงข้างหน้า)
             for (let i = 0; i < 24; i += 3) {
                 if (!hourly.time[i]) break;
                 const timeStr = hourly.time[i].split("T")[1];
@@ -1342,6 +1425,7 @@ jobs:
         }
 
         function simulateRandomFire() {
+            // สุ่มพิกัดใกล้จุดเสี่ยงใน อ.สันทราย เช่น แม่เตาไห หรือ ไหม้ทุกปี
             const targets = [
                 { lat: 19.0419, lng: 99.0429, label: "จำลองจุดความร้อน VIIRS (โซนไหม้ทุกปี ต.แม่แฝก)" },
                 { lat: 18.9525, lng: 99.0462, label: "จำลองจุดความร้อน VIIRS (โซนแม่เตาไห ต.ป่าไผ่)" },
@@ -1357,13 +1441,16 @@ jobs:
         function createSimulatedFire(lat, lng, title) {
             layerLiveGistda.clearLayers();
 
+            // 1. หาสถานีลมที่ใกล้ที่สุดเพื่อคำนวณทิศทางไฟลาม
             const nearestWind = windStations[1];
-            const spreadDirectionDeg = (nearestWind.dir + 180) % 360;
-            const spreadDistKm = Math.max(0.8, (nearestWind.speed * 0.12));
+            const spreadDirectionDeg = (nearestWind.dir + 180) % 360; // ทิศที่ลมพัดไป
+            const spreadDistKm = Math.max(0.8, (nearestWind.speed * 0.12)); // ระยะคาดการณ์ไฟลามใน 3 ชม.
 
+            // 2. คำนวณระยะห่างจากจุดยุทธศาสตร์และเส้นทางที่รถเข้าถึง
             const nearestSP = findNearestStrategicPoint(lat, lng);
             const nearestRoute = findNearestRouteDistance(lat, lng);
 
+            // 3. วาดกรวยคาดการณ์พื้นที่ไฟลามตามทิศทางลม (Fire Spread Cone)
             const tip1 = destinationPoint(lat, lng, spreadDistKm, spreadDirectionDeg - 18);
             const tipCenter = destinationPoint(lat, lng, spreadDistKm * 1.15, spreadDirectionDeg);
             const tip2 = destinationPoint(lat, lng, spreadDistKm, spreadDirectionDeg + 18);
@@ -1382,6 +1469,7 @@ jobs:
             });
             layerLiveGistda.addLayer(spreadPolygon);
 
+            // 4. วาดเส้นประเชื่อมไปยังเส้นทางที่รถเข้าถึงที่ใกล้ที่สุด
             const accessLine = L.polyline([[lat, lng], nearestRoute.closestPoint], {
                 color: '#10b981',
                 weight: 3,
@@ -1389,6 +1477,7 @@ jobs:
             });
             layerLiveGistda.addLayer(accessLine);
 
+            // 5. วาดหมุดจุดความร้อนเกิดใหม่แบบกระพริบ
             const fireIcon = L.divIcon({
                 className: 'live-fire-icon',
                 html: `<div class="w-8 h-8 rounded-full bg-red-600 border-2 border-white flex items-center justify-center text-white shadow-xl hotspot-pulse">
@@ -1425,6 +1514,7 @@ jobs:
             `;
             marker.bindPopup(popupHtml).addTo(layerLiveGistda).openPopup();
 
+            // อัปเดตกล่องแจ้งเตือนยุทธวิธีด้านซ้ายล่าง
             document.getElementById("tacticalAlertContent").innerHTML = `
                 <div class="space-y-1 text-slate-200">
                     <div class="font-bold text-red-400">${title}</div>
@@ -1467,6 +1557,7 @@ jobs:
                 const geojson = await res.json();
                 const features = geojson.features || [];
 
+                // กรองเฉพาะพิกัดในอำเภอสันทรายและพื้นที่รอยต่อ
                 const sansaiFeatures = features.filter(f => {
                     const c = f.geometry?.coordinates || [0, 0];
                     return (c[1] >= 18.80 && c[1] <= 19.15 && c[0] >= 98.94 && c[0] <= 99.15);
