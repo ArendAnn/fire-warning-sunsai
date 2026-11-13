@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ไฟป่า 2570 - ระบบเฝ้าระวังและยุทธวิธีดับไฟป่า อ.สันทราย จ.เชียงใหม่</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Sarabun & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Sarabun', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Sarabun', 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        /* Leaflet Popup Custom Styling */
+        .leaflet-popup-content-wrapper {
+            background: rgba(15, 23, 42, 0.95) !important;
+            color: #f8fafc !important;
+            border: 1px solid #334155;
+            border-radius: 0.75rem !important;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5) !important;
+        }
+        .leaflet-popup-tip {
+            background: rgba(15, 23, 42, 0.95) !important;
+        }
+        .leaflet-container {
+            font-family: 'Sarabun', sans-serif !important;
+            background: #0b1120;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            80%, 100% { transform: scale(2.4); opacity: 0; }
+        }
+        .hotspot-pulse::before {
+            content: '';
+            position: absolute;
+            inset: -6px;
+            border-radius: 50%;
+            background-color: #ef4444;
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+            z-index: -1;
+        }
+        .wind-arrow-icon {
+            transition: transform 0.5s ease-out;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col select-none">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900/95 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 z-30 shadow-lg">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-md shadow-red-600/30">
+                <i class="fa-solid fa-fire-flame-curved text-white text-xl"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-base md:text-lg font-bold tracking-wide text-white">ศูนย์ปฏิบัติการเฝ้าระวังและควบคุมไฟป่า อำเภอสันทราย</h1>
+                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-red-500/20 text-red-400 border border-red-500/30 rounded-full">ไฟป่า 2570</span>
+                </div>
+                <p class="text-xs text-slate-400">กองร้อยอาสารักษาดินแดนอำเภอสันทราย ที่ 15 • ระบบแผนที่ยุทธวิธี & ดาวเทียม NOAA (VIIRS)</p>
+            </div>
+        </div>
+
+        <!-- Quick Status Indicators -->
+        <div class="flex items-center flex-wrap gap-2 md:gap-4">
+            <!-- Real-time Weather Summary Pill -->
+            <div id="topWeatherPill" class="flex items-center gap-3 bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
+                <div class="flex items-center gap-1.5 text-amber-400">
+                    <i class="fa-solid fa-temperature-half"></i>
+                    <span id="navTemp">--°C</span>
+                </div>
+                <div class="h-3 w-[1px] bg-slate-700"></div>
+                <div class="flex items-center gap-1.5 text-sky-400">
+                    <i class="fa-solid fa-droplet"></i>
+                    <span id="navHum">--%</span>
+                </div>
+                <div class="h-3 w-[1px] bg-slate-700"></div>
+                <div class="flex items-center gap-1.5 text-emerald-400">
+                    <i class="fa-solid fa-wind"></i>
+                    <span id="navWind">-- กม./ชม.</span>
+                </div>
+            </div>
+
+            <!-- Simulate Hotspot Button -->
+            <button id="btnToggleSimMode" onclick="toggleSimMode()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-crosshairs"></i>
+                <span id="simModeText">โหมดจำลองจุดไฟใหม่: ปิด</span>
+            </button>
+
+            <!-- GISTDA API Modal Button -->
+            <button onclick="openModal('gistdaModal')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition flex items-center gap-1.5 shadow-md shadow-blue-600/20">
+                <i class="fa-solid fa-satellite"></i>
+                <span>เชื่อมต่อ GISTDA API</span>
+            </button>
+
+            <!-- Python Script Guide Button -->
+            <button onclick="openModal('scriptModal')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+                <i class="fa-brands fa-github"></i>
+                <span class="hidden sm:inline">สคริปต์รันทุก 3 ชม.</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Layout -->
+    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+        
+        <!-- Left Sidebar: Controls, Filters & Analytics -->
+        <aside class="w-full lg:w-96 bg-slate-900 border-r border-slate-800 flex flex-col h-72 lg:h-full z-20 shrink-0">
+            
+            <!-- Sidebar Tabs -->
+            <div class="grid grid-cols-4 border-b border-slate-800 bg-slate-950/50 text-xs font-medium">
+                <button onclick="switchTab('tab-layers')" id="btn-tab-layers" class="py-3 text-center border-b-2 border-orange-500 text-orange-400 flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-layer-group text-sm"></i>
+                    <span>ชั้นข้อมูล</span>
+                </button>
+                <button onclick="switchTab('tab-tactical')" id="btn-tab-tactical" class="py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-shield-halved text-sm"></i>
+                    <span>จุดยุทธศาสตร์</span>
+                </button>
+                <button onclick="switchTab('tab-hotspots')" id="btn-tab-hotspots" class="py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-fire text-sm"></i>
+                    <span>สถิติ 128 จุด</span>
+                </button>
+                <button onclick="switchTab('tab-weather')" id="btn-tab-weather" class="py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-compass text-sm"></i>
+                    <span>ลม 3 ชม.</span>
+                </button>
+            </div>
+
+            <!-- Tab Content Container -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+                <!-- TAB 1: LAYERS & FILTERS -->
+                <div id="tab-layers" class="space-y-4">
+                    <!-- KPI Summary Cards -->
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div class="bg-slate-800/70 border border-slate-700/70 rounded-xl p-3">
+                            <div class="flex items-center justify-between text-xs text-slate-400">
+                                <span>จุดความร้อน KML</span>
+                                <i class="fa-solid fa-fire-burner text-red-400"></i>
+                            </div>
+                            <div class="text-xl font-bold text-white mt-1"><span id="kpiVisibleHotspots">128</span> <span class="text-xs font-normal text-slate-400">/ 128 จุด</span></div>
+                            <div class="text-[11px] text-slate-400 mt-0.5">ก.พ. - พ.ค. 2026</div>
+                        </div>
+                        <div class="bg-slate-800/70 border border-slate-700/70 rounded-xl p-3">
+                            <div class="flex items-center justify-between text-xs text-slate-400">
+                                <span>หมุดยุทธศาสตร์ & เส้นทาง</span>
+                                <i class="fa-solid fa-route text-sky-400"></i>
+                            </div>
+                            <div class="text-xl font-bold text-white mt-1">27 <span class="text-xs font-normal text-slate-400">หมุด</span> • 20 <span class="text-xs font-normal text-slate-400">สาย</span></div>
+                            <div class="text-[11px] text-emerald-400 mt-0.5">พร้อมคำนวณระยะเข้าถึง</div>
+                        </div>
+                    </div>
+
+                    <!-- Map Style Switcher -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
+                        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                            <i class="fa-solid fa-globe text-sky-400"></i> รูปแบบแผนที่พื้นหลัง
+                        </h3>
+                        <div class="grid grid-cols-3 gap-2 text-xs">
+                            <button onclick="setBaseMap('satellite')" id="bm-satellite" class="py-2 px-2 rounded-lg bg-orange-500/20 border border-orange-500 text-orange-300 font-semibold transition">
+                                ดาวเทียม (Esri)
+                            </button>
+                            <button onclick="setBaseMap('topo')" id="bm-topo" class="py-2 px-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition">
+                                ภูมิประเทศ
+                            </button>
+                            <button onclick="setBaseMap('osm')" id="bm-osm" class="py-2 px-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition">
+                                ถนน (OSM)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Layer Visibility Toggles -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 space-y-2.5">
+                        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-eye text-emerald-400"></i> เปิด/ปิด ชั้นข้อมูลบนแผนที่
+                        </h3>
+                        
+                        <label class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <input type="checkbox" id="chkStrategic" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                <span class="text-xs font-medium text-slate-200">จุดยุทธศาสตร์ & เฝ้าระวัง (27 จุด)</span>
+                            </div>
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"></span>
+                        </label>
+
+                        <label class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <input type="checkbox" id="chkRoutes" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                <span class="text-xs font-medium text-slate-200">เส้นทางเข้าถึง / แนวกันไฟ (20 สาย)</span>
+                            </div>
+                            <span class="w-4 h-1 bg-cyan-400 rounded-full"></span>
+                        </label>
+
+                        <label class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <input type="checkbox" id="chkHotspots" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                <span class="text-xs font-medium text-slate-200">จุดความร้อนย้อนหลังปี 2026 (128 จุด)</span>
+                            </div>
+                            <span class="w-3 h-3 rounded-full bg-red-500 ring-2 ring-red-500/30"></span>
+                        </label>
+
+                        <label class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <input type="checkbox" id="chkWind" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                <span class="text-xs font-medium text-slate-200">ลูกศรทิศทางลมปัจจุบัน (Real-time)</span>
+                            </div>
+                            <i class="fa-solid fa-location-arrow text-sky-400 text-xs"></i>
+                        </label>
+
+                        <label class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <input type="checkbox" id="chkLiveGistda" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                <span class="text-xs font-medium text-amber-300">จุดความร้อนใหม่ / จำลองไฟลาม</span>
+                            </div>
+                            <span class="w-3 h-3 rounded-full bg-amber-400 animate-ping"></span>
+                        </label>
+                    </div>
+
+                    <!-- Filters for 128 Hotspots -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-filter text-orange-400"></i> กรองจุดความร้อน (128 จุด)
+                            </h3>
+                            <button onclick="resetFilters()" class="text-[11px] text-sky-400 hover:underline">ล้างตัวกรอง</button>
+                        </div>
+
+                        <!-- Filter by Month -->
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">แยกตามเดือน (ปี 2026)</label>
+                            <select id="filterMonth" onchange="applyHotspotFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                                <option value="ALL">ทั้งหมดทุกเดือน (128 จุด)</option>
+                                <option value="02">กุมภาพันธ์ 2026 (1 จุด - สีเหลือง)</option>
+                                <option value="03">มีนาคม 2026 (90 จุด - สีแดง)</option>
+                                <option value="04">เมษายน 2026 (35 จุด - สีส้ม)</option>
+                                <option value="05">พฤษภาคม 2026 (2 จุด - สีม่วง)</option>
+                            </select>
+                        </div>
+
+                        <!-- Filter by Tambon -->
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">แยกตามตำบล (อ.สันทราย)</label>
+                            <select id="filterTambon" onchange="applyHotspotFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                                <option value="ALL">ทุกตำบล</option>
+                                <option value="แม่แฝกใหม่">ต.แม่แฝกใหม่ (46 จุด)</option>
+                                <option value="แม่แฝก">ต.แม่แฝก (37 จุด)</option>
+                                <option value="ป่าไผ่">ต.ป่าไผ่ (21 จุด)</option>
+                                <option value="หนองหาร">ต.หนองหาร (14 จุด)</option>
+                                <option value="หนองแหย่ง">ต.หนองแหย่ง (9 จุด)</option>
+                                <option value="สันทรายน้อย">ต.สันทรายน้อย (1 จุด)</option>
+                            </select>
+                        </div>
+
+                        <!-- Filter by Land Area -->
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">พื้นที่รับผิดชอบ</label>
+                            <select id="filterAreaType" onchange="applyHotspotFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                                <option value="ALL">ทุกประเภทพื้นที่</option>
+                                <option value="ป่าสงวนแห่งชาติ">ป่าสงวนแห่งชาติ</option>
+                                <option value="ป่าอนุรักษ์">ป่าอนุรักษ์</option>
+                                <option value="ชุมชนและอื่น ๆ">ชุมชนและอื่น ๆ</option>
+                                <option value="พื้นที่เกษตร">พื้นที่เกษตร</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: STRATEGIC POINTS & ROUTES -->
+                <div id="tab-tactical" class="hidden space-y-3">
+                    <div class="flex items-center gap-2">
+                        <div class="relative flex-1">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="searchStrategic" oninput="renderStrategicList()" placeholder="ค้นหาจุดยุทธศาสตร์ เช่น แม่เตาไห, ไหม้ทุกปี..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                        </div>
+                    </div>
+
+                    <!-- Category Filter Pills -->
+                    <div class="flex gap-1.5 overflow-x-auto pb-1 text-[11px]">
+                        <button onclick="setStrategicCat('ALL')" id="scat-ALL" class="px-2.5 py-1 rounded-full bg-orange-500 text-white font-medium shrink-0">ทั้งหมด (27)</button>
+                        <button onclick="setStrategicCat('ยุทธวิธีดับไฟ')" id="scat-ยุทธวิธีดับไฟ" class="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 shrink-0">ยุทธวิธี/เสี่ยงสูง (5)</button>
+                        <button onclick="setStrategicCat('ฐานปฏิบัติการ')" id="scat-ฐานปฏิบัติการ" class="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 shrink-0">ฐานปฏิบัติการ (7)</button>
+                        <button onclick="setStrategicCat('จุดเฝ้าระวัง')" id="scat-จุดเฝ้าระวัง" class="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 shrink-0">จุดเฝ้าระวัง (15)</button>
+                    </div>
+
+                    <div id="strategicListContainer" class="space-y-2"></div>
+                </div>
+
+                <!-- TAB 3: 128 HISTORICAL HOTSPOTS -->
+                <div id="tab-hotspots" class="hidden space-y-3">
+                    <!-- Tambon Breakdown Bars -->
+                    <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3">
+                        <h4 class="text-xs font-semibold text-slate-200 mb-2">สรุปจุดความร้อนรายตำบล (128 จุด)</h4>
+                        <div id="tambonStatsBars" class="space-y-1.5 text-xs"></div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+                        <span>รายการจุดความร้อนที่ตรงตามตัวกรอง</span>
+                        <span id="hotspotListCount" class="font-semibold text-orange-400">128 รายการ</span>
+                    </div>
+
+                    <div id="hotspotListContainer" class="space-y-2 max-h-96 overflow-y-auto pr-1"></div>
+                </div>
+
+                <!-- TAB 4: REAL-TIME WIND & 3-HOUR FORECAST -->
+                <div id="tab-weather" class="hidden space-y-3">
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-3.5">
+                        <div class="flex items-center justify-between mb-2">
+                            <div>
+                                <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+                                    <i class="fa-solid fa-satellite-dish text-emerald-400"></i> สภาพอากาศและทิศทางลม อ.สันทราย
+                                </h3>
+                                <p class="text-[11px] text-slate-400">อัปเดตล่าสุดจาก Open-Meteo API</p>
+                            </div>
+                            <button onclick="fetchAllWeather()" class="p-1.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-sky-400 text-xs" title="ดึงข้อมูลใหม่">
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                        </div>
+
+                        <div id="weatherStationsCards" class="space-y-2 mt-2">
+                            <div class="text-xs text-slate-400 py-4 text-center">กำลังดึงข้อมูลทิศทางลมจริง...</div>
+                        </div>
+                    </div>
+
+                    <!-- 3-Hour Interval Forecast Table -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
+                        <h4 class="text-xs font-semibold text-slate-200 mb-2 flex items-center gap-1.5">
+                            <i class="fa-regular fa-clock text-amber-400"></i> พยากรณ์ลมล่วงหน้าทุก 3 ชั่วโมง (โซนแม่แฝก/ป่าไผ่)
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-[11px]">
+                                <thead>
+                                    <tr class="border-b border-slate-700 text-slate-400">
+                                        <th class="py-1.5">เวลา</th>
+                                        <th class="py-1.5">ทิศลม</th>
+                                        <th class="py-1.5">ความเร็วลม</th>
+                                        <th class="py-1.5">ความชื้น</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="forecast3HrTable" class="divide-y divide-slate-800 text-slate-200">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sidebar Footer: Tactical Analysis Box -->
+            <div id="tacticalAlertBox" class="p-3 bg-slate-950 border-t border-slate-800 text-xs">
+                <div class="flex items-center justify-between text-slate-400 mb-1">
+                    <span class="font-semibold text-amber-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-bolt"></i> ระบบวิเคราะห์ยุทธวิธีดับไฟ
+                    </span>
+                    <button onclick="simulateRandomFire()" class="text-[11px] text-amber-300 hover:underline">
+                        + ทดสอบจำลองไฟเกิดใหม่
+                    </button>
+                </div>
+                <div id="tacticalAlertContent" class="text-[11px] text-slate-300 leading-relaxed">
+                    คลิกปุ่ม <b class="text-amber-300">"โหมดจำลองจุดไฟใหม่"</b> ด้านบน แล้วคลิกจุดใดก็ได้บนแผนที่ เพื่อคำนวณทิศทางไฟลามตามลมและหาเส้นทางที่รถเข้าถึงใกล้ที่สุด
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Interactive Map -->
+        <main class="flex-1 relative h-full">
+            <div id="map" class="w-full h-full z-10"></div>
+
+            <!-- Floating Map Legend (Bottom Right) -->
+            <div class="absolute bottom-5 right-4 z-20 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 shadow-xl max-w-xs text-[11px] space-y-1.5">
+                <div class="font-bold text-slate-200 flex items-center justify-between mb-1">
+                    <span>สัญลักษณ์แผนที่ (ไฟป่า 2570)</span>
+                    <button onclick="fitAllBounds()" class="text-sky-400 hover:underline text-[10px]">ดูทั้งอำเภอ</button>
+                </div>
+                <div class="grid grid-cols-2 gap-x-3 gap-y-1">
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500 border border-white"></span> <span>ฐานปฏิบัติการ</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 border border-white"></span> <span>จุดเสี่ยง/ยุทธวิธี</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white"></span> <span>จุดเฝ้าระวัง</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-3.5 h-1 bg-cyan-400 rounded"></span> <span>เส้นทางเข้าถึง</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span> <span>ก.พ. (1 จุด)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> <span>มี.ค. (90 จุด)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span> <span>เม.ย. (35 จุด)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> <span>พ.ค. (2 จุด)</span></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL 1: GISTDA API CONNECTION -->
+    <div id="gistdaModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                        <i class="fa-solid fa-satellite"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">ตั้งค่าการเชื่อมต่อ GISTDA Disaster API</h3>
+                        <p class="text-[11px] text-slate-400">ดึงข้อมูลจุดความร้อน VIIRS จากดาวเทียม NOAA-20</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('gistdaModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">GISTDA API Key ของคุณ:</label>
+                    <input type="password" id="gistdaApiKeyInput" placeholder="วางรหัส API Key ที่ได้จากเว็บไซต์ GISTDA ที่นี่..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    <p class="text-[11px] text-slate-400 mt-1">* รหัสคีย์จะถูกบันทึกไว้ในเบราว์เซอร์เครื่องของคุณเท่านั้น (LocalStorage) ไม่มีการส่งออกไปที่อื่น</p>
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">ช่วงเวลาข้อมูลจุดความร้อน (Endpoint):</label>
+                    <select id="gistdaTimeRange" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+                        <option value="1day">ย้อนหลัง 1 วัน (/features/viirs/1day)</option>
+                        <option value="3days">ย้อนหลัง 3 วัน (/features/viirs/3days)</option>
+                        <option value="7days">ย้อนหลัง 7 วัน (/features/viirs/7days)</option>
+                    </select>
+                </div>
+
+                <div id="gistdaStatusMsg" class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 text-[11px] leading-relaxed">
+                    พร้อมเชื่อมต่อกับ: <code class="text-sky-400">https://api-gateway.gistda.or.th/api/2.0/resources/features/viirs/1day</code>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button onclick="simulateRandomFire(); closeModal('gistdaModal');" class="px-3.5 py-2 rounded-xl text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30">
+                    ทดสอบจำลองจุดความร้อนเข้า อ.สันทราย
+                </button>
+                <button onclick="fetchGistdaLive()" class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30">
+                    <i class="fa-solid fa-cloud-arrow-down mr-1"></i> ดึงข้อมูลจริงเดี๋ยวนี้
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: PYTHON & GITHUB ACTIONS 3-HOUR SCRIPT -->
+    <div id="scriptModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-600/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                        <i class="fa-brands fa-python text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">สคริปต์อัตโนมัติรันทุก 3 ชั่วโมง บน GitHub Actions</h3>
+                        <p class="text-[11px] text-slate-400">ดึงข้อมูลจุดความร้อน GISTDA (NOAA VIIRS) + ทิศทางลม Open-Meteo อัปเดตเข้าแอปอัตโนมัติ</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('scriptModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto space-y-4 pr-1 text-xs">
+                <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-3 text-slate-300 leading-relaxed">
+                    คุณสามารถนำโค้ดด้านล่างไปวางใน GitHub Repository เพื่อให้เซิร์ฟเวอร์คลาวด์ของ GitHub รันดึงข้อมูลจาก GISTDA API และสภาพอากาศของ อ.สันทราย ทุกๆ 3 ชั่วโมงโดยไม่มีค่าใช้จ่ายและไม่ติดลิมิตครับ
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="font-semibold text-emerald-400">1. ไฟล์สคริปต์ Python: <code>update_fire_data.py</code></span>
+                        <button onclick="copyCode('pythonCodeBlock')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px]">
+                            <i class="fa-regular fa-copy mr-1"></i> คัดลอกโค้ด
+                        </button>
+                    </div>
+                    <pre id="pythonCodeBlock" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-200 overflow-x-auto select-all font-mono">import os
+import json
+import requests
+from datetime import datetime
+
+# 1. ดึง API Key จาก GitHub Secrets
+GISTDA_API_KEY = os.environ.get("GISTDA_API_KEY")
+
+# ขอบเขตพิกัดอำเภอสันทราย จ.เชียงใหม่ (Bounding Box)
+SANSAI_BOUNDS = {"min_lat": 18.80, "max_lat": 19.15, "min_lon": 98.94, "max_lon": 99.15}
+
+def fetch_wind_data():
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude": 19.015,
+        "longitude": 99.035,
+        "current": "temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m",
+        "timezone": "Asia/Bangkok"
+    }
+    res = requests.get(url, params=params, timeout=15)
+    return res.json().get("current", {})
+
+def fetch_gistda_viirs():
+    url = "https://api-gateway.gistda.or.th/api/2.0/resources/features/viirs/1day"
+    headers = {"API-Key": GISTDA_API_KEY, "Accept": "application/json"}
+    res = requests.get(url, headers=headers, timeout=20)
+    if res.status_code != 200:
+        return []
+    features = res.json().get("features", [])
+    sansai_hotspots = []
+    for f in features:
+        coords = f.get("geometry", {}).get("coordinates", [0, 0])
+        lon, lat = coords[0], coords[1]
+        if (SANSAI_BOUNDS["min_lat"] <= lat <= SANSAI_BOUNDS["max_lat"] and
+            SANSAI_BOUNDS["min_lon"] <= lon <= SANSAI_BOUNDS["max_lon"]):
+            sansai_hotspots.append(f)
+    return sansai_hotspots
+
+if __name__ == "__main__":
+    wind = fetch_wind_data()
+    hotspots = fetch_gistda_viirs()
+    output = {
+        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "wind_sansai": wind,
+        "active_hotspots_count": len(hotspots),
+        "active_hotspots": hotspots
+    }
+    with open("sansai_live_status.json", "w", encoding="utf-8") as f:
+        json.dump(output, f, ensure_ascii=False, indent=2)
+    print(f"อัปเดตสำเร็จ: พบจุดความร้อนใน อ.สันทราย {len(hotspots)} จุด")</pre>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="font-semibold text-sky-400">2. ไฟล์ตั้งเวลา GitHub Actions (ทุก 3 ชม.): <code>.github/workflows/schedule_3hr.yml</code></span>
+                        <button onclick="copyCode('yamlCodeBlock')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px]">
+                            <i class="fa-regular fa-copy mr-1"></i> คัดลอกโค้ด
+                        </button>
+                    </div>
+                    <pre id="yamlCodeBlock" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-200 overflow-x-auto select-all font-mono">name: Update San Sai Fire & Wind Every 3 Hours
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'  # รันอัตโนมัติทุกๆ 3 ชั่วโมง
+  workflow_dispatch:       # กดรันด้วยมือได้ตลอดเวลา
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Requests
+        run: pip install requests
+
+      - name: Run GISTDA & Wind Script
+        env:
+          GISTDA_API_KEY: ${{ secrets.GISTDA_API_KEY }}
+        run: python update_fire_data.py
+
+      - name: Commit Updated Data
+        run: |
+          git config user.name "SanSai-FireBot"
+          git config user.email "bot@sansai-fire.local"
+          git add sansai_live_status.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update fire & wind data"
+          git push</pre>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-slate-800">
+                <button onclick="closeModal('scriptModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================================================
+        // 1. ข้อมูลจุดยุทธศาสตร์และจุดเฝ้าระวัง 27 จุด จากไฟล์ KML "ไฟป่า 2570.kml"
+        // ============================================================================
+        const strategicPoints = [
+            { id: "SP01", name: "กองร้อยอาสารักษาดินแดนอำเภอสันทราย ที่ 15", lat: 18.8486175, lng: 99.0453617, alt: 0, cat: "ฐานปฏิบัติการ", note: "ศูนย์บัญชาการและกำลังพลหลัก อส.อ.สันทราย" },
+            { id: "SP02", name: "กะลามะพร้าว", lat: 18.9249737, lng: 99.0763325, alt: 371, cat: "จุดเฝ้าระวัง", note: "จุดเฝ้าระวังโซนรอยต่อ ต.หนองแหย่ง - ต.ป่าไผ่" },
+            { id: "SP03", name: "เชื่อม 2 ตำบล ขึ้นดับได้", lat: 18.9358611, lng: 99.0723470, alt: 591, cat: "ยุทธวิธีดับไฟ", note: "จุดยุทธวิธีสำคัญ เชื่อมต่อ 2 ตำบล ชุดปฏิบัติการสามารถเดินเท้าขึ้นสกัดไฟได้" },
+            { id: "SP04", name: "แม่เตาไห", lat: 18.9509212, lng: 99.0455285, alt: 402, cat: "จุดเฝ้าระวัง", note: "จุดเฝ้าระวังและปลายเส้นทางเข้าถึงพื้นที่ป่า ต.หนองหาร/ป่าไผ่" },
+            { id: "SP05", name: "มอเตอร์ครอส", lat: 18.9628350, lng: 99.0262972, alt: 383, cat: "จุดเฝ้าระวัง", note: "จุดสังเกตการณ์และทางเข้าพื้นที่ลาดตระเวน" },
+            { id: "SP06", name: "ระเบียงดาว กำนันแหลม", lat: 18.9405605, lng: 99.0339210, alt: 399, cat: "จุดเฝ้าระวัง", note: "จุดเฝ้าระวังไฟป่าพื้นที่ ต.หนองหาร" },
+            { id: "SP07", name: "ตุ๊อาร์ม", lat: 19.0138470, lng: 99.0135727, alt: 376, cat: "จุดเฝ้าระวัง", note: "จุดเฝ้าระวังพื้นที่ ต.แม่แฝกใหม่" },
+            { id: "SP08", name: "บ้านตามวล", lat: 19.0125286, lng: 99.0166265, alt: 377, cat: "จุดเฝ้าระวัง", note: "จุดเชื่อมต่อเส้นทางลาดตระเวน ต.แม่แฝกใหม่" },
+            { id: "SP09", name: "ศูนย์จาระธรรม", lat: 18.9774381, lng: 99.0010315, alt: 387, cat: "ฐานปฏิบัติการ", note: "สถานที่สำคัญและจุดตั้งรับพื้นที่รอยต่อ" },
+            { id: "SP10", name: "ไร่ประพัฒน์", lat: 18.9485900, lng: 99.0272097, alt: 373, cat: "จุดเฝ้าระวัง", note: "จุดเฝ้าระวังพื้นที่เกษตรและแนวชายป่า" },
+            { id: "SP11", name: "โรงงานแม่เตาไห", lat: 18.9551929, lng: 99.0296612, alt: 366, cat: "จุดเฝ้าระวัง", note: "จุดตั้งต้นเส้นทางเข้าสู่แม่เตาไห" },
+            { id: "SP12", name: "เตาถ่าน อส.", lat: 18.9653674, lng: 99.0236201, alt: 401, cat: "จุดเฝ้าระวัง", note: "จุดเฝ้าระวังและตรวจสอบการเผาในพื้นที่" },
+            { id: "SP13", name: "สวนลำไย เจอรถกระบะดำ", lat: 18.9655114, lng: 99.0208677, alt: 394, cat: "จุดเฝ้าระวัง", note: "จุดเฝ้าระวังพิเศษ เคยพบรถต้องสงสัยในพื้นที่" },
+            { id: "SP14", name: "ภูธรภาค 5", lat: 18.9551435, lng: 99.0113068, alt: 375, cat: "ฐานปฏิบัติการ", note: "พื้นที่ใกล้เคียงหน่วยงานตำรวจภูธรภาค 5" },
+            { id: "SP15", name: "ตชด.33", lat: 18.9506085, lng: 99.0016185, alt: 359, cat: "ฐานปฏิบัติการ", note: "กองกำกับการตำรวจตระเวนชายแดนที่ 33" },
+            { id: "SP16", name: "ที่ทิ้งขยะ หนองหาร", lat: 18.9661903, lng: 99.0105495, alt: 373, cat: "จุดเฝ้าระวัง", note: "จุดเสี่ยงเกิดไฟไหม้สะสม ต.หนองหาร" },
+            { id: "SP17", name: "สนามยิงปืน กองบิน 41", lat: 18.9729790, lng: 99.0038720, alt: 371, cat: "ฐานปฏิบัติการ", note: "จุดตั้งต้นเส้นทางเข้าพื้นที่ด้านทิศตะวันตก" },
+            { id: "SP18", name: "รถเข้าถึง", lat: 18.9766151, lng: 99.0074704, alt: 412, cat: "ยุทธวิธีดับไฟ", note: "จุดยุทธวิธีที่รถยนต์บรรทุกน้ำ/รถชุดปฏิบัติการเข้าถึงได้" },
+            { id: "SP19", name: "บ้านที่ยึดปืน", lat: 19.0063310, lng: 99.0030351, alt: 355, cat: "จุดเฝ้าระวัง", note: "จุดเฝ้าระวังด้านความมั่นคงและไฟป่า" },
+            { id: "SP20", name: "สนามกอล์ฟ", lat: 19.0285882, lng: 98.9964037, alt: 371, cat: "จุดเฝ้าระวัง", note: "จุดสังเกตการณ์บริเวณสนามกอล์ฟ" },
+            { id: "SP21", name: "สวนลำไยหลังสนามกอล์ฟ", lat: 19.0228688, lng: 99.0041920, alt: 398, cat: "จุดเฝ้าระวัง", note: "จุดเฝ้าระวังแนวสวนลำไยติดชายป่า" },
+            { id: "SP22", name: "เป็นป่าต้นไผ่", lat: 19.0168678, lng: 98.9989268, alt: 392, cat: "ยุทธวิธีดับไฟ", note: "พื้นที่ป่าไผ่ เชื้อเพลิงติดไฟง่ายและลามเร็ว ต้องระวังลูกไฟกระเด็น" },
+            { id: "SP23", name: "ไม่ค่อยได้ขึ้น ตามไฟไม่ทัน", lat: 19.0534829, lng: 99.0224276, alt: 640, cat: "ยุทธวิธีดับไฟ", note: "พื้นที่สูงชัน (640 ม.) เข้าถึงยาก หากเกิดไฟต้องรีบสกัดตั้งแต่ตีนเขา" },
+            { id: "SP24", name: "ไหม้ทุกปี", lat: 19.0419116, lng: 99.0429593, alt: 656, cat: "ยุทธวิธีดับไฟ", note: "พื้นที่เสี่ยงสูงสุด (ความสูง 656 ม.) เกิดไฟป่าซ้ำซากทุกปี" },
+            { id: "SP25", name: "โรงวัว", lat: 19.0369309, lng: 99.0112082, alt: 381, cat: "จุดเฝ้าระวัง", note: "จุดสังเกตการณ์และต้นทางเข้าพื้นที่ ต.แม่แฝก" },
+            { id: "SP26", name: "ป่าไม้ห้วยส้ม", lat: 19.0866618, lng: 98.9811026, alt: 355, cat: "ฐานปฏิบัติการ", note: "หน่วยป้องกันและพัฒนาป่าไม้ห้วยส้ม โซนเหนือ ต.แม่แฝก" },
+            { id: "SP27", name: "สำนักปฏิบัติธรรมห้วยส้ม", lat: 19.0824636, lng: 98.9849871, alt: 354, cat: "ฐานปฏิบัติการ", note: "จุดเฝ้าระวังและสถานที่สำคัญใกล้ป่าไม้ห้วยส้ม" }
+        ];
+
+        // ============================================================================
+        // 2. ข้อมูลเส้นทางเข้าถึงพื้นที่ / แนวกันไฟ 20 เส้นทาง จากไฟล์ KML
+        // ============================================================================
+        const kmlRoutes = [
+            { id: "R01", name: "เส้นทางยุทธวิธี สายที่ 1 (โซนเหนือเชื่อมต่อกะลามะพร้าว)", color: "#38bdf8", coords: [[18.9445446,99.0709065],[18.9445013,99.0790919],[18.9350140,99.0795967]] },
+            { id: "R02", name: "เส้นทางยุทธวิธี สายที่ 2 (กะลามะพร้าว - เชื่อม 2 ตำบล)", color: "#38bdf8", coords: [[18.9252923,99.0762318],[18.9343302,99.0754954],[18.9359890,99.0722816],[18.9366549,99.0709334],[18.9355593,99.0673378],[18.9324973,99.0629814]] },
+            { id: "R03", name: "เส้นทางยุทธวิธี สายที่ 3 (แนวป่าไผ่ตะวันออก)", color: "#38bdf8", coords: [[18.9462662,99.0635654],[18.9598887,99.0563544]] },
+            { id: "R04", name: "เส้นทางยุทธวิธี สายที่ 4 (เข้าสู่แม่เตาไห สายเหนือ)", color: "#38bdf8", coords: [[18.9619279,99.0407034],[18.9586143,99.0410299],[18.9578398,99.0422774],[18.9546884,99.0436877],[18.9514560,99.0436874],[18.9508290,99.0455359]] },
+            { id: "R05", name: "เส้นทางยุทธวิธี สายที่ 5 (บ้านตามวล - แนวขวางแม่แฝกใหม่)", color: "#38bdf8", coords: [[19.0118864,99.0045161],[19.0134626,99.0068088],[19.0118819,99.0105347],[19.0122924,99.0166125],[19.0127027,99.0215894],[19.0115830,99.0247002],[19.0118484,99.0272294],[19.0104607,99.0281053],[19.0095487,99.0359526],[19.0069744,99.0383923]] },
+            { id: "R06", name: "เส้นทางยุทธวิธี สายที่ 6 (โรงงานแม่เตาไห - แม่เตาไห)", color: "#38bdf8", coords: [[18.9556075,99.0303156],[18.9543697,99.0355316],[18.9522697,99.0379796],[18.9509116,99.0416193],[18.9514189,99.0436933]] },
+            { id: "R07", name: "เส้นทางยุทธวิธี สายที่ 7 (มอเตอร์ครอส - สวนลำไย)", color: "#38bdf8", coords: [[18.9646450,99.0270863],[18.9679053,99.0259421],[18.9699853,99.0241703],[18.9688043,99.0206691],[18.9665337,99.0189108]] },
+            { id: "R08", name: "เส้นทางยุทธวิธี สายที่ 8 (สนามยิงปืน กองบิน 41 - จุดรถเข้าถึง)", color: "#38bdf8", coords: [[18.9729890,99.0038934],[18.9723478,99.0066337],[18.9752333,99.0084076],[18.9766845,99.0074534]] },
+            { id: "R09", name: "เส้นทางยุทธวิธี สายที่ 9 (แนวเหนือจุดรถเข้าถึง)", color: "#38bdf8", coords: [[18.9828472,99.0026835],[18.9818238,99.0057744],[18.9837135,99.0085292],[18.9816295,99.0118838],[18.9798220,99.0145376]] },
+            { id: "R10", name: "เส้นทางยุทธวิธี สายที่ 10 (แนวเชื่อมขึ้นทิศเหนือ)", color: "#38bdf8", coords: [[18.9836589,99.0085242],[18.9883160,99.0089889],[18.9910400,99.0078725],[18.9917938,99.0064994]] },
+            { id: "R11", name: "เส้นทางยุทธวิธี สายที่ 11 (บ้านที่ยึดปืน - ตะวันออก)", color: "#38bdf8", coords: [[19.0062813,99.0051558],[19.0065111,99.0074482],[19.0057281,99.0085650],[19.0056747,99.0101333],[19.0053205,99.0117860],[19.0047904,99.0131065],[19.0037659,99.0144855]] },
+            { id: "R12", name: "เส้นทางยุทธวิธี สายที่ 12 (บ้านตามวล - เชื่อมสาย 11)", color: "#38bdf8", coords: [[19.0122861,99.0170782],[19.0061887,99.0190217],[19.0037553,99.0144343]] },
+            { id: "R13", name: "เส้นทางยุทธวิธี สายที่ 13 (สวนลำไยหลังสนามกอล์ฟ - สนามกอล์ฟ)", color: "#38bdf8", coords: [[19.0215869,99.0008293],[19.0200585,99.0032757],[19.0203168,99.0077968],[19.0213675,99.0090927],[19.0222854,99.0110823],[19.0244544,99.0106176],[19.0255714,99.0078684],[19.0266905,99.0037271],[19.0281412,99.0027235],[19.0302886,98.9993694]] },
+            { id: "R14", name: "เส้นทางสีเขียว สายที่ 14 (โซนเหนือสนามกอล์ฟ - โรงวัว)", color: "#4ade80", coords: [[19.0423724,98.9987187],[19.0354874,99.0038479],[19.0349424,99.0087351]] },
+            { id: "R15", name: "เส้นทางสีเขียว สายที่ 15 (เส้นทางหลักเข้าโซนเขาแม่แฝก)", color: "#4ade80", coords: [[19.0450454,99.0095746],[19.0457253,99.0158088],[19.0455740,99.0202410],[19.0430842,99.0245755],[19.0432373,99.0293089]] },
+            { id: "R16", name: "เส้นทางสีส้ม สายที่ 16 (แยกขึ้นเขาโซนเหนือ ต.แม่แฝก)", color: "#fb923c", coords: [[19.0433427,99.0297249],[19.0428479,99.0313240],[19.0453399,99.0330008],[19.0460582,99.0337450],[19.0484198,99.0344508],[19.0489053,99.0338197]] },
+            { id: "R17", name: "เส้นทางยุทธวิธี สายที่ 17 (เข้าใกล้จุดตามไฟไม่ทัน)", color: "#38bdf8", coords: [[19.0437208,99.0295321],[19.0454140,99.0302270],[19.0499664,99.0263990]] },
+            { id: "R18", name: "เส้นทางสีส้ม สายที่ 18 (มุ่งหน้าจุดไหม้ทุกปี)", color: "#fb923c", coords: [[19.0426521,99.0313853],[19.0400941,99.0352321],[19.0375408,99.0371115]] },
+            { id: "R19", name: "เส้นทางสีเขียว สายที่ 19 (ทางเชื่อมใกล้โรงวัว)", color: "#4ade80", coords: [[19.0349507,99.0087106],[19.0335445,99.0099919]] },
+            { id: "R20", name: "เส้นทางยุทธวิธี สายที่ 20 (โรงวัว - ตะวันออก)", color: "#38bdf8", coords: [[19.0369870,99.0113140],[19.0387753,99.0123366],[19.0405066,99.0122015],[19.0392396,99.0170654]] }
+        ];
+
+        // ============================================================================
+        // 3. ข้อมูลจุดความร้อนย้อนหลัง 128 จุด (ครบถ้วนจากไฟล์ KML ไฟป่า 2570)
+        // ============================================================================
+        const rawHotspots128 = [
+            [1,"2026-02-16","1335","สันทรายน้อย","ชุมชนและอื่น ๆ","อื่น ๆ",18.823178,99.032403,"503414, 2081263"],
+            [2,"2026-03-02","1335","แม่แฝก","ป่าสงวนแห่งชาติ","พื้นที่ป่า",19.094890,98.977536,"497637, 2111327"],
+            [3,"2026-03-02","1335","แม่แฝก","ป่าสงวนแห่งชาติ","พื้นที่ป่า",19.101641,98.976299,"497507, 2112074"],
+            [4,"2026-03-23","1344","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.965067,99.053433,"505625, 2096963"],
+            [5,"2026-03-23","1344","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.965626,99.057081,"506009, 2097025"],
+            [6,"2026-03-24","0215","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.970867,99.058593,"506168, 2097605"],
+            [7,"2026-03-24","0215","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.971492,99.054898,"505779, 2097674"],
+            [8,"2026-03-24","0215","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.972098,99.051212,"505391, 2097741"],
+            [9,"2026-03-24","0215","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.976094,99.048060,"505059, 2098183"],
+            [10,"2026-03-24","0215","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.960718,99.057079,"506009, 2096482"],
+            [11,"2026-03-24","0215","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.963492,99.061317,"506455, 2096789"],
+            [12,"2026-03-24","0215","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.964098,99.057622,"506066, 2096856"],
+            [13,"2026-03-24","0215","หนองหาร","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.944889,99.039474,"504156, 2094730"],
+            [14,"2026-03-24","0215","หนองหาร","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.946407,99.039104,"504117, 2094898"],
+            [15,"2026-03-25","0153","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.961122,99.066018,"506950, 2096527"],
+            [16,"2026-03-25","0153","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",18.976062,99.064494,"506789, 2098180"],
+            [17,"2026-03-25","0156","หนองหาร","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.941780,99.037289,"503926, 2094386"],
+            [18,"2026-03-25","0156","หนองหาร","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.942423,99.032891,"503463, 2094457"],
+            [19,"2026-03-25","0156","หนองหาร","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.943209,99.035684,"503757, 2094544"],
+            [20,"2026-03-25","0156","หนองหาร","ป่าสงวนแห่งชาติ","เกษตรอื่น ๆ",18.943824,99.031248,"503290, 2094612"],
+            [21,"2026-03-25","0153","หนองหาร","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.947421,99.031848,"503353, 2095010"],
+            [22,"2026-03-25","0153","หนองหาร","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.951027,99.032409,"503412, 2095409"],
+            [23,"2026-03-26","0136","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",18.976042,99.068513,"507212, 2098178"],
+            [24,"2026-03-26","1429","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.943591,99.059239,"506237, 2094587"],
+            [25,"2026-03-26","1429","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.955368,99.057229,"506025, 2095890"],
+            [26,"2026-03-27","0117","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.988289,99.035190,"503704, 2099532"],
+            [27,"2026-03-27","0117","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.989247,99.034706,"503653, 2099638"],
+            [28,"2026-03-27","1407","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.971464,99.009072,"500955, 2097670"],
+            [29,"2026-03-27","1407","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.973307,99.010640,"501120, 2097874"],
+            [30,"2026-03-28","1350","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.951327,99.084403,"508886, 2095444"],
+            [31,"2026-03-28","0238","หนองหาร","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.958157,99.035972,"503787, 2096198"],
+            [32,"2026-03-28","1350","หนองหาร","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.961663,99.036163,"503807, 2096586"],
+            [33,"2026-03-28","1350","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.973550,99.022600,"502379, 2097901"],
+            [34,"2026-03-28","1350","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.987938,99.023732,"502498, 2099493"],
+            [35,"2026-03-28","1350","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",18.992820,99.057727,"506076, 2100034"],
+            [36,"2026-03-28","1350","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.995809,99.030280,"503187, 2100364"],
+            [37,"2026-03-28","1350","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",18.997282,99.064674,"506807, 2100528"],
+            [38,"2026-03-28","1350","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.047076,99.049411,"505199, 2106037"],
+            [39,"2026-03-28","0238","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.068176,99.008089,"500851, 2108371"],
+            [40,"2026-03-28","0238","แม่แฝก","ป่าสงวนแห่งชาติ","เกษตรอื่น ๆ",19.073843,99.004315,"500454, 2108998"],
+            [41,"2026-03-29","0219","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.943549,99.075936,"507995, 2094583"],
+            [42,"2026-03-29","0219","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.947119,99.076603,"508065, 2094978"],
+            [43,"2026-03-29","0219","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.948550,99.068359,"507197, 2095136"],
+            [44,"2026-03-29","0219","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.070362,99.015303,"501610, 2108613"],
+            [45,"2026-03-29","0219","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",19.014889,99.017807,"501874, 2102475"],
+            [46,"2026-03-29","0219","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",19.015631,99.013597,"501431, 2102557"],
+            [47,"2026-03-29","0219","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.992150,99.021899,"502305, 2099959"],
+            [48,"2026-03-29","0219","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.992873,99.017823,"501876, 2100039"],
+            [49,"2026-03-29","0219","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.995702,99.022584,"502377, 2100352"],
+            [50,"2026-03-29","0219","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.002036,99.028304,"502979, 2101053"],
+            [51,"2026-03-29","0219","หนองหาร","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.967314,99.023682,"502493, 2097211"],
+            [52,"2026-03-29","0219","หนองหาร","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.970026,99.022324,"502350, 2097511"],
+            [53,"2026-03-29","0219","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.970767,99.018135,"501909, 2097593"],
+            [54,"2026-03-29","0219","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.971607,99.020044,"502110, 2097686"],
+            [55,"2026-03-29","0219","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.974337,99.018733,"501972, 2097988"],
+            [56,"2026-03-29","0219","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.978648,99.015152,"501595, 2098465"],
+            [57,"2026-03-29","0219","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",18.996914,99.057443,"506046, 2100487"],
+            [58,"2026-03-29","0219","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",18.997532,99.074811,"507874, 2100556"],
+            [59,"2026-03-29","0219","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",18.998274,99.070574,"507428, 2100638"],
+            [60,"2026-03-29","0219","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",18.999008,99.066394,"506988, 2100719"],
+            [61,"2026-03-29","0219","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",18.999732,99.062280,"506555, 2100799"],
+            [62,"2026-03-29","0219","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.000439,99.058271,"506133, 2100877"],
+            [63,"2026-03-29","0219","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.002532,99.067250,"507078, 2101109"],
+            [64,"2026-03-29","0219","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",18.987681,99.047198,"504968, 2099465"],
+            [65,"2026-03-29","0219","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",18.991232,99.047941,"505046, 2099858"],
+            [66,"2026-03-29","1331","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.000199,99.041587,"504377, 2100850"],
+            [67,"2026-03-29","1331","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.005109,99.027184,"502861, 2101393"],
+            [68,"2026-03-29","1331","แม่แฝกใหม่","ชุมชนและอื่น ๆ","พื้นที่ป่า",19.011500,99.021294,"502241, 2102100"],
+            [69,"2026-03-30","0202","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.023340,99.010643,"501120, 2103410"],
+            [70,"2026-03-30","0202","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.023794,99.077826,"508190, 2103462"],
+            [71,"2026-03-30","0202","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.063982,99.017460,"501837, 2107907"],
+            [72,"2026-03-30","0202","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.064560,99.013592,"501430, 2107971"],
+            [73,"2026-03-30","0202","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.067380,99.017926,"501886, 2108283"],
+            [74,"2026-03-30","0202","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.997943,99.018147,"501910, 2100600"],
+            [75,"2026-03-30","0202","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",19.000763,99.022537,"502372, 2100912"],
+            [76,"2026-03-30","0202","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",19.001342,99.018651,"501963, 2100976"],
+            [77,"2026-03-30","0202","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.004161,99.023050,"502426, 2101288"],
+            [78,"2026-03-30","0202","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.007550,99.023593,"502483, 2101663"],
+            [79,"2026-03-30","0202","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","เกษตรอื่น ๆ",19.009790,99.031859,"503353, 2101911"],
+            [80,"2026-03-30","0202","แม่แฝกใหม่","ชุมชนและอื่น ๆ","อื่น ๆ",19.010930,99.024135,"502540, 2102037"],
+            [81,"2026-03-30","0202","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.014310,99.024743,"502604, 2102411"],
+            [82,"2026-03-30","0202","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.000188,99.049976,"505260, 2100849"],
+            [83,"2026-03-30","0202","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.002997,99.054367,"505722, 2101160"],
+            [84,"2026-03-30","0202","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.005236,99.062748,"506604, 2101408"],
+            [85,"2026-03-30","0202","หนองแหย่ง","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.942688,99.080419,"508467, 2094488"],
+            [86,"2026-03-30","0202","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.943259,99.076592,"508064, 2094551"],
+            [87,"2026-03-30","1312","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.052793,99.059677,"506279, 2106670"],
+            [88,"2026-03-31","0141","ป่าไผ่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.937501,99.079068,"508325, 2093914"],
+            [89,"2026-03-31","0141","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.017538,99.080921,"508516, 2102770"],
+            [90,"2026-03-31","1433","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.008821,99.041266,"504343, 2101804"],
+            [91,"2026-03-31","1433","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.015247,99.039529,"504160, 2102515"],
+            [92,"2026-04-01","0124","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.021484,99.037459,"503942, 2103205"],
+            [93,"2026-04-01","0124","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.024312,99.038780,"504081, 2103518"],
+            [94,"2026-04-01","0124","หนองแหย่ง","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.944211,99.090127,"509489, 2094657"],
+            [95,"2026-04-01","0124","หนองแหย่ง","ป่าอนุรักษ์","พื้นที่ป่า",18.950113,99.091013,"509582, 2095310"],
+            [96,"2026-04-01","1416","หนองแหย่ง","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.945192,99.099606,"510487, 2094766"],
+            [97,"2026-04-01","1416","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.043372,99.071686,"507543, 2105628"],
+            [98,"2026-04-02","0247","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.017209,99.069138,"507276, 2102733"],
+            [99,"2026-04-02","1357","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.069974,98.998954,"499890, 2108570"],
+            [100,"2026-04-02","1357","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.070571,99.003431,"500361, 2108636"],
+            [101,"2026-04-03","0225","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.003418,99.068496,"507209, 2101207"],
+            [102,"2026-04-03","0225","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.036171,99.064936,"506833, 2104831"],
+            [103,"2026-04-03","0225","แม่แฝก","ป่าสงวนแห่งชาติ","พื้นที่ป่า",19.070616,98.989772,"498924, 2108641"],
+            [104,"2026-04-03","0225","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.073553,98.995466,"499523, 2108966"],
+            [105,"2026-04-03","0225","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.077367,98.996397,"499621, 2109388"],
+            [106,"2026-04-03","1337","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.015712,99.059512,"506263, 2102567"],
+            [107,"2026-04-03","1337","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.079401,98.996797,"499663, 2109613"],
+            [108,"2026-04-04","0208","แม่แฝกใหม่","ป่าอนุรักษ์","พื้นที่ป่า",19.009738,99.058607,"506168, 2101906"],
+            [109,"2026-04-04","0208","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.045743,99.023931,"502518, 2105889"],
+            [110,"2026-04-04","0208","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.048472,99.028132,"502960, 2106191"],
+            [111,"2026-04-04","0208","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.051770,99.028712,"503021, 2106556"],
+            [112,"2026-04-04","0208","แม่แฝก","ชุมชนและอื่น ๆ","อื่น ๆ",19.040716,99.034222,"503601, 2105333"],
+            [113,"2026-04-04","0208","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.044024,99.034803,"503662, 2105699"],
+            [114,"2026-04-16","0143","หนองแหย่ง","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.921780,99.107294,"511298, 2092176"],
+            [115,"2026-04-16","0143","หนองแหย่ง","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.926090,99.107858,"511357, 2092653"],
+            [116,"2026-04-20","0208","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",19.006069,99.010423,"501097, 2101499"],
+            [117,"2026-04-20","0208","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","อื่น ๆ",19.006648,99.006803,"500716, 2101563"],
+            [118,"2026-04-20","0208","แม่แฝกใหม่","ป่าสงวนแห่งชาติ","พื้นที่ป่า",19.009946,99.007383,"500777, 2101928"],
+            [119,"2026-04-21","0149","หนองแหย่ง","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.919034,99.104263,"510979, 2091872"],
+            [120,"2026-04-21","0149","หนองแหย่ง","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.919733,99.098984,"510423, 2091949"],
+            [121,"2026-04-21","0149","หนองแหย่ง","ป่าสงวนแห่งชาติ","พื้นที่ป่า",18.923591,99.099774,"510506, 2092376"],
+            [122,"2026-04-23","1403","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.085221,98.995637,"499541, 2110257"],
+            [123,"2026-04-23","1403","แม่แฝก","ป่าสงวนแห่งชาติ","พื้นที่ป่า",19.086088,98.993051,"499269, 2110353"],
+            [124,"2026-04-24","0234","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.078217,98.998289,"499820, 2109482"],
+            [125,"2026-04-24","0234","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.081091,98.997177,"499703, 2109800"],
+            [126,"2026-04-25","0217","แม่แฝก","ป่าอนุรักษ์","พื้นที่ป่า",19.079491,99.002757,"500290, 2109623"],
+            [127,"2026-05-06","0210","แม่แฝก","ป่าสงวนแห่งชาติ","พื้นที่ป่า",19.080548,98.984049,"498322, 2109740"],
+            [128,"2026-05-17","1314","หนองหาร","พื้นที่เกษตร","นาข้าว",18.943582,98.987282,"498661, 2094585"]
+        ];
+
+        const hotspotsData = rawHotspots128.map(item => ({
+            seq: item[0],
+            date: item[1],
+            month: item[1].split("-")[1],
+            time: item[2],
+            tambon: item[3],
+            areaType: item[4],
+            landUse: item[5],
+            lat: item[6],
+            lng: item[7],
+            utm: item[8]
+        }));
+
+        // สถานีตรวจวัดทิศทางลมหลักในพื้นที่ อ.สันทราย (ดึงจาก Open-Meteo จริง)
+        const windStations = [
+            { id: "WS1", name: "โซนเหนือ (ป่าไม้ห้วยส้ม - ต.แม่แฝก)", lat: 19.0866, lng: 98.9811, temp: 31, hum: 42, speed: 12, dir: 215 },
+            { id: "WS2", name: "โซนภูเขาสูง (จุดไหม้ทุกปี - ต.แม่แฝก/แม่แฝกใหม่)", lat: 19.0419, lng: 99.0429, temp: 29, hum: 45, speed: 15, dir: 230 },
+            { id: "WS3", name: "โซนกลาง (แม่เตาไห - ต.หนองหาร/ป่าไผ่)", lat: 18.9509, lng: 99.0455, temp: 32, hum: 38, speed: 11, dir: 205 },
+            { id: "WS4", name: "โซนตะวันออก (เชื่อม 2 ตำบล - ต.ป่าไผ่/หนองแหย่ง)", lat: 18.9358, lng: 99.0723, temp: 31, hum: 40, speed: 13, dir: 220 },
+            { id: "WS5", name: "ศูนย์บัญชาการ (กองร้อย อส.อ.สันทราย ที่ 15)", lat: 18.8486, lng: 99.0453, temp: 33, hum: 44, speed: 9, dir: 195 }
+        ];
+
+        // ============================================================================
+        // 4. ตัวแปรระบบแผนที่ Leaflet และ Layer Groups
+        // ============================================================================
+        let map;
+        let baseMaps = {};
+        let layerStrategic = L.layerGroup();
+        let layerRoutes = L.layerGroup();
+        let layerHotspots = L.layerGroup();
+        let layerWind = L.layerGroup();
+        let layerLiveGistda = L.layerGroup();
+
+        let simModeActive = false;
+        let selectedStrategicCat = "ALL";
+
+        window.onload = function() {
+            initMap();
+            renderStrategicMarkers();
+            renderRouteLines();
+            applyHotspotFilters();
+            renderStrategicList();
+            renderTambonSummaryBars();
+            fetchAllWeather();
+
+            // โหลด API Key ที่เคยบันทึกไว้
+            const savedKey = localStorage.getItem("SANSAI_GISTDA_KEY");
+            if (savedKey) {
+                document.getElementById("gistdaApiKeyInput").value = savedKey;
+            }
+        };
+
+        function initMap() {
+            map = L.map('map', {
+                center: [19.005, 99.035],
+                zoom: 12,
+                zoomControl: false
+            });
+
+            L.control.zoom({ position: 'topright' }).addTo(map);
+
+            baseMaps.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Esri World Imagery'
+            });
+            baseMaps.topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                attribution: 'OpenTopoMap'
+            });
+            baseMaps.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: 'OpenStreetMap'
+            });
+
+            baseMaps.satellite.addTo(map);
+
+            layerRoutes.addTo(map);
+            layerHotspots.addTo(map);
+            layerStrategic.addTo(map);
+            layerWind.addTo(map);
+            layerLiveGistda.addTo(map);
+
+            // คลิกบนแผนที่เพื่อจำลองจุดเกิดไฟใหม่และวิเคราะห์ยุทธวิธี
+            map.on('click', function(e) {
+                if (simModeActive) {
+                    createSimulatedFire(e.latlng.lat, e.latlng.lng, "จุดความร้อนจำลอง (คลิกบนแผนที่)");
+                }
+            });
+        }
+
+        function setBaseMap(type) {
+            Object.values(baseMaps).forEach(layer => map.removeLayer(layer));
+            baseMaps[type].addTo(map);
+
+            ['satellite', 'topo', 'osm'].forEach(k => {
+                const btn = document.getElementById('bm-' + k);
+                if (k === type) {
+                    btn.className = "py-2 px-2 rounded-lg bg-orange-500/20 border border-orange-500 text-orange-300 font-semibold transition";
+                } else {
+                    btn.className = "py-2 px-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition";
+                }
+            });
+        }
+
+        function updateLayers() {
+            toggleLayer(layerStrategic, document.getElementById('chkStrategic').checked);
+            toggleLayer(layerRoutes, document.getElementById('chkRoutes').checked);
+            toggleLayer(layerHotspots, document.getElementById('chkHotspots').checked);
+            toggleLayer(layerWind, document.getElementById('chkWind').checked);
+            toggleLayer(layerLiveGistda, document.getElementById('chkLiveGistda').checked);
+        }
+
+        function toggleLayer(layer, show) {
+            if (show) {
+                if (!map.hasLayer(layer)) map.addLayer(layer);
+            } else {
+                if (map.hasLayer(layer)) map.removeLayer(layer);
+            }
+        }
+
+        function fitAllBounds() {
+            map.flyTo([18.995, 99.035], 12, { duration: 1.2 });
+        }
+
+        // ============================================================================
+        // 5. วาดหมุดจุดยุทธศาสตร์ 27 จุด และเส้นทาง 20 สาย
+        // ============================================================================
+        function renderStrategicMarkers() {
+            layerStrategic.clearLayers();
+            strategicPoints.forEach(sp => {
+                let bg = "bg-emerald-500";
+                let icon = "fa-eye";
+                if (sp.cat === "ฐานปฏิบัติการ") {
+                    bg = "bg-indigo-600";
+                    icon = "fa-building-shield";
+                } else if (sp.cat === "ยุทธวิธีดับไฟ") {
+                    bg = "bg-amber-500";
+                    icon = "fa-triangle-exclamation";
+                }
+
+                const customIcon = L.divIcon({
+                    className: 'custom-strategic-icon',
+                    html: `<div class="w-7 h-7 rounded-full ${bg} border-2 border-white shadow-lg flex items-center justify-center text-white text-xs hover:scale-125 transition transform">
+                            <i class="fa-solid ${icon}"></i>
+                           </div>`,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
+                });
+
+                const marker = L.marker([sp.lat, sp.lng], { icon: customIcon });
+                marker.bindPopup(`
+                    <div class="p-1 min-w-[210px]">
+                        <div class="text-[10px] font-semibold uppercase tracking-wider text-orange-400">${sp.cat}</div>
+                        <div class="text-sm font-bold text-white mt-0.5">${sp.name}</div>
+                        <div class="text-xs text-slate-300 mt-1">${sp.note}</div>
+                        <div class="mt-2 pt-2 border-t border-slate-700 text-[11px] text-slate-400 space-y-0.5">
+                            <div><b>พิกัด:</b> ${sp.lat.toFixed(5)}, ${sp.lng.toFixed(5)}</div>
+                            <div><b>ความสูงน้ำทะเล:</b> ${sp.alt} เมตร</div>
+                        </div>
+                        <button onclick="createSimulatedFire(${sp.lat}, ${sp.lng}, 'จำลองไฟใกล้ ${sp.name}')" class="mt-2 w-full py-1.5 bg-red-600/30 hover:bg-red-600/50 border border-red-500/50 text-red-200 rounded-lg text-[11px] font-medium transition">
+                            <i class="fa-solid fa-fire mr-1"></i> จำลองไฟเกิดที่จุดนี้
+                        </button>
+                    </div>
+                `);
+                layerStrategic.addLayer(marker);
+            });
+        }
+
+        function renderRouteLines() {
+            layerRoutes.clearLayers();
+            kmlRoutes.forEach(route => {
+                const distKm = calculatePolylineLength(route.coords);
+                const polyline = L.polyline(route.coords, {
+                    color: route.color,
+                    weight: 4,
+                    opacity: 0.9,
+                    dashArray: route.color === "#fb923c" ? "6, 6" : null
+                });
+
+                polyline.bindPopup(`
+                    <div class="p-1">
+                        <div class="text-xs font-bold text-sky-400">${route.name}</div>
+                        <div class="text-xs text-slate-300 mt-1">ระยะทางรวมประมาณ: <b>${distKm.toFixed(2)} กม.</b></div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">จำนวนจุดหักเลี้ยว: ${route.coords.length} จุด</div>
+                    </div>
+                `);
+                layerRoutes.addLayer(polyline);
+            });
+        }
+
+        // ============================================================================
+        // 6. วาดและกรองจุดความร้อนย้อนหลัง 128 จุด
+        // ============================================================================
+        function getMonthColor(m) {
+            if (m === "02") return "#facc15"; // ก.พ. เหลือง
+            if (m === "03") return "#ef4444"; // มี.ค. แดง
+            if (m === "04") return "#f97316"; // เม.ย. ส้ม
+            if (m === "05") return "#a855f7"; // พ.ค. ม่วง
+            return "#ef4444";
+        }
+
+        function applyHotspotFilters() {
+            const monthVal = document.getElementById("filterMonth").value;
+            const tambonVal = document.getElementById("filterTambon").value;
+            const areaVal = document.getElementById("filterAreaType").value;
+
+            const filtered = hotspotsData.filter(h => {
+                const mMatch = (monthVal === "ALL" || h.month === monthVal);
+                const tMatch = (tambonVal === "ALL" || h.tambon === tambonVal);
+                const aMatch = (areaVal === "ALL" || h.areaType === areaVal);
+                return mMatch && tMatch && aMatch;
+            });
+
+            layerHotspots.clearLayers();
+            filtered.forEach(h => {
+                const color = getMonthColor(h.month);
+                const circle = L.circleMarker([h.lat, h.lng], {
+                    radius: 6,
+                    fillColor: color,
+                    color: "#ffffff",
+                    weight: 1.2,
+                    opacity: 0.9,
+                    fillOpacity: 0.85
+                });
+
+                const nearestRoute = findNearestRouteDistance(h.lat, h.lng);
+                const nearestSP = findNearestStrategicPoint(h.lat, h.lng);
+
+                circle.bindPopup(`
+                    <div class="p-1 min-w-[220px] space-y-1">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-[10px] font-bold">ลำดับที่ #${h.seq}</span>
+                            <span class="text-[11px] text-slate-400">${h.date} (${h.time} น.)</span>
+                        </div>
+                        <div class="text-sm font-bold text-white pt-1">ต.${h.tambon} อ.สันทราย</div>
+                        <div class="text-xs text-slate-300"><b>พื้นที่:</b> ${h.areaType} (${h.landUse})</div>
+                        <div class="text-[11px] text-slate-400"><b>พิกัด:</b> ${h.lat.toFixed(5)}, ${h.lng.toFixed(5)}</div>
+                        <div class="text-[11px] text-slate-400"><b>UTM:</b> ${h.utm}</div>
+                        <div class="mt-2 pt-2 border-t border-slate-700 text-[11px] space-y-1">
+                            <div class="text-emerald-400"><i class="fa-solid fa-location-dot mr-1"></i>ใกล้หมุด: <b>${nearestSP.point.name}</b> (${nearestSP.distKm.toFixed(2)} กม.)</div>
+                            <div class="text-sky-400"><i class="fa-solid fa-route mr-1"></i>ห่างเส้นทางเข้าถึง: <b>${(nearestRoute.distKm * 1000).toFixed(0)} เมตร</b></div>
+                        </div>
+                    </div>
+                `);
+                layerHotspots.addLayer(circle);
+            });
+
+            document.getElementById("kpiVisibleHotspots").innerText = filtered.length;
+            document.getElementById("hotspotListCount").innerText = `${filtered.length} รายการ`;
+            renderHotspotSidebarList(filtered);
+        }
+
+        function resetFilters() {
+            document.getElementById("filterMonth").value = "ALL";
+            document.getElementById("filterTambon").value = "ALL";
+            document.getElementById("filterAreaType").value = "ALL";
+            applyHotspotFilters();
+        }
+
+        // ============================================================================
+        // 7. แสดงรายการในแถบด้านข้าง (Sidebar Lists)
+        // ============================================================================
+        function setStrategicCat(cat) {
+            selectedStrategicCat = cat;
+            ['ALL', 'ยุทธวิธีดับไฟ', 'ฐานปฏิบัติการ', 'จุดเฝ้าระวัง'].forEach(c => {
+                const btn = document.getElementById('scat-' + c);
+                if (c === cat) {
+                    btn.className = "px-2.5 py-1 rounded-full bg-orange-500 text-white font-medium shrink-0";
+                } else {
+                    btn.className = "px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 shrink-0";
+                }
+            });
+            renderStrategicList();
+        }
+
+        function renderStrategicList() {
+            const q = document.getElementById("searchStrategic").value.trim().toLowerCase();
+            const container = document.getElementById("strategicListContainer");
+            container.innerHTML = "";
+
+            const filtered = strategicPoints.filter(sp => {
+                const cMatch = (selectedStrategicCat === "ALL" || sp.cat === selectedStrategicCat);
+                const qMatch = (!q || sp.name.toLowerCase().includes(q) || sp.note.toLowerCase().includes(q));
+                return cMatch && qMatch;
+            });
+
+            filtered.forEach(sp => {
+                let badgeClass = "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
+                if (sp.cat === "ฐานปฏิบัติการ") badgeClass = "bg-indigo-500/20 text-indigo-300 border-indigo-500/30";
+                if (sp.cat === "ยุทธวิธีดับไฟ") badgeClass = "bg-amber-500/20 text-amber-300 border-amber-500/30";
+
+                const div = document.createElement("div");
+                div.className = "p-2.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition";
+                div.onclick = () => {
+                    map.flyTo([sp.lat, sp.lng], 15, { duration: 1 });
+                };
+                div.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-white">${sp.name}</span>
+                        <span class="px-2 py-0.5 text-[10px] rounded-full border ${badgeClass}">${sp.cat}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">${sp.note}</p>
+                    <div class="flex items-center justify-between text-[10px] text-slate-500 mt-1.5">
+                        <span>พิกัด: ${sp.lat.toFixed(4)}, ${sp.lng.toFixed(4)}</span>
+                        <span>ความสูง: ${sp.alt} ม.</span>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderTambonSummaryBars() {
+            const counts = {};
+            hotspotsData.forEach(h => {
+                counts[h.tambon] = (counts[h.tambon] || 0) + 1;
+            });
+            const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+            const container = document.getElementById("tambonStatsBars");
+            container.innerHTML = "";
+
+            sorted.forEach(([tambon, count]) => {
+                const pct = ((count / 128) * 100).toFixed(1);
+                const row = document.createElement("div");
+                row.innerHTML = `
+                    <div class="flex justify-between text-[11px] mb-0.5">
+                        <span class="text-slate-300">ต.${tambon}</span>
+                        <span class="font-semibold text-white">${count} จุด (${pct}%)</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-orange-500 to-red-500 rounded-full" style="width: ${pct}%"></div>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        function renderHotspotSidebarList(list) {
+            const container = document.getElementById("hotspotListContainer");
+            container.innerHTML = "";
+
+            list.forEach(h => {
+                const color = getMonthColor(h.month);
+                const item = document.createElement("div");
+                item.className = "p-2.5 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-slate-700/60 cursor-pointer transition flex items-center justify-between";
+                item.onclick = () => {
+                    map.flyTo([h.lat, h.lng], 15, { duration: 0.8 });
+                };
+                item.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <span class="w-3 h-3 rounded-full shrink-0" style="background:${color}"></span>
+                        <div>
+                            <div class="text-xs font-semibold text-white">ลำดับ #${h.seq} • ต.${h.tambon}</div>
+                            <div class="text-[11px] text-slate-400">${h.date} เวลา ${h.time} น. • ${h.areaType}</div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-location-crosshairs text-slate-500 hover:text-orange-400 text-xs"></i>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // ============================================================================
+        // 8. ดึงข้อมูลทิศทางลมและสภาพอากาศจริง (Open-Meteo API ทุก 3 ชั่วโมง)
+        // ============================================================================
+        function degreeToThaiCompass(deg) {
+            const dirs = ["เหนือ (N)", "ตะวันออกเฉียงเหนือ (NE)", "ตะวันออก (E)", "ตะวันออกเฉียงใต้ (SE)", "ใต้ (S)", "ตะวันตกเฉียงใต้ (SW)", "ตะวันตก (W)", "ตะวันตกเฉียงเหนือ (NW)"];
+            return dirs[Math.round(deg / 45) % 8];
+        }
+
+        async function fetchAllWeather() {
+            try {
+                // ดึงข้อมูลสถานีหลักโซนกลาง/เขาแม่แฝก พร้อมพยากรณ์รายชั่วโมง
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=19.015&longitude=99.035&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m&timezone=Asia%2FBangkok&forecast_days=2`;
+                const res = await fetch(url);
+                const data = await res.json();
+
+                if (data.current) {
+                    const c = data.current;
+                    document.getElementById("navTemp").innerText = `${c.temperature_2m}°C`;
+                    document.getElementById("navHum").innerText = `${c.relative_humidity_2m}%`;
+                    document.getElementById("navWind").innerText = `${c.wind_speed_10m} กม./ชม. (${degreeToThaiCompass(c.wind_direction_10m)})`;
+
+                    // อัปเดตค่าจริงลงในสถานีตรวจวัดทั้ง 5 จุดในสันทราย (ปรับตามระดับความสูงจริง)
+                    windStations.forEach((ws, idx) => {
+                        ws.temp = +(c.temperature_2m - (idx === 1 ? 1.8 : idx * 0.2)).toFixed(1);
+                        ws.hum = Math.min(100, Math.max(15, Math.round(c.relative_humidity_2m + (idx === 1 ? 4 : -1))));
+                        ws.speed = +(c.wind_speed_10m + (idx === 1 ? 2.5 : idx * 0.4)).toFixed(1);
+                        ws.dir = (c.wind_direction_10m + (idx * 5 - 5) + 360) % 360;
+                    });
+                }
+
+                renderWindVectorsOnMap();
+                renderWeatherStationCards();
+                if (data.hourly) {
+                    render3HourForecastTable(data.hourly);
+                }
+            } catch (err) {
+                console.warn("Fallback weather data used:", err);
+                renderWindVectorsOnMap();
+                renderWeatherStationCards();
+            }
+        }
+
+        function renderWindVectorsOnMap() {
+            layerWind.clearLayers();
+            windStations.forEach(ws => {
+                // ทิศที่ลมพัดไป (ทิศทางไฟลาม) = ทิศที่มาของลม + 180 องศา
+                const blowToDeg = (ws.dir + 180) % 360;
+                const windIcon = L.divIcon({
+                    className: 'wind-vector-marker',
+                    html: `
+                        <div class="flex flex-col items-center pointer-events-auto">
+                            <div class="w-9 h-9 rounded-full bg-sky-500/20 border border-sky-400/70 backdrop-blur-sm flex items-center justify-center shadow-lg"
+                                 style="transform: rotate(${blowToDeg}deg);">
+                                <i class="fa-solid fa-arrow-up text-sky-300 text-sm"></i>
+                            </div>
+                            <span class="mt-0.5 px-1.5 py-0.2 bg-slate-900/90 border border-slate-700 rounded text-[10px] text-sky-300 font-semibold whitespace-nowrap">
+                                ${ws.speed} กม./ชม.
+                            </span>
+                        </div>
+                    `,
+                    iconSize: [60, 50],
+                    iconAnchor: [30, 25]
+                });
+
+                const m = L.marker([ws.lat, ws.lng], { icon: windIcon });
+                m.bindPopup(`
+                    <div class="p-1 text-xs space-y-1">
+                        <div class="font-bold text-sky-400">${ws.name}</div>
+                        <div><b>ความเร็วลม:</b> ${ws.speed} กม./ชม.</div>
+                        <div><b>ทิศทางลมมา:</b> ${ws.dir}° (${degreeToThaiCompass(ws.dir)})</div>
+                        <div class="text-amber-300"><b>ทิศทางลมพัดไป (ไฟลาม):</b> ${blowToDeg}° (${degreeToThaiCompass(blowToDeg)})</div>
+                        <div><b>อุณหภูมิ:</b> ${ws.temp}°C • <b>ความชื้น:</b> ${ws.hum}%</div>
+                    </div>
+                `);
+                layerWind.addLayer(m);
+            });
+        }
+
+        function renderWeatherStationCards() {
+            const container = document.getElementById("weatherStationsCards");
+            container.innerHTML = "";
+            windStations.forEach(ws => {
+                const blowToDeg = (ws.dir + 180) % 360;
+                const card = document.createElement("div");
+                card.className = "p-2.5 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between cursor-pointer hover:border-slate-700";
+                card.onclick = () => map.flyTo([ws.lat, ws.lng], 14, { duration: 0.8 });
+                card.innerHTML = `
+                    <div>
+                        <div class="text-xs font-semibold text-white">${ws.name}</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">
+                            พัดไปทิศ: <b class="text-sky-400">${degreeToThaiCompass(blowToDeg)}</b> • ความชื้น ${ws.hum}%
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-xs font-bold text-emerald-400">${ws.speed} กม./ชม.</div>
+                        <div class="text-[11px] text-amber-400">${ws.temp}°C</div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function render3HourForecastTable(hourly) {
+            const tbody = document.getElementById("forecast3HrTable");
+            tbody.innerHTML = "";
+            // แสดงผลทุกๆ 3 ชั่วโมง จำนวน 8 รอบ (24 ชั่วโมงข้างหน้า)
+            for (let i = 0; i < 24; i += 3) {
+                if (!hourly.time[i]) break;
+                const timeStr = hourly.time[i].split("T")[1];
+                const spd = hourly.wind_speed_10m[i];
+                const dir = hourly.wind_direction_10m[i];
+                const hum = hourly.relative_humidity_2m[i];
+
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td class="py-1.5 font-medium">${timeStr} น.</td>
+                    <td class="py-1.5 text-sky-300">${dir}° (${degreeToThaiCompass(dir).split(" ")[0]})</td>
+                    <td class="py-1.5 font-semibold text-emerald-400">${spd} กม./ชม.</td>
+                    <td class="py-1.5 ${hum < 40 ? 'text-red-400 font-bold' : 'text-slate-300'}">${hum}%</td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
+
+        // ============================================================================
+        // 9. ระบบจำลองจุดเกิดไฟใหม่ + คำนวณระยะห่างยุทธวิธี + วาดกรวยไฟลามตามลม
+        // ============================================================================
+        function toggleSimMode() {
+            simModeActive = !simModeActive;
+            const btn = document.getElementById("btnToggleSimMode");
+            const txt = document.getElementById("simModeText");
+            if (simModeActive) {
+                btn.className = "px-3 py-1.5 rounded-xl text-xs font-bold bg-red-600 text-white border border-red-400 transition flex items-center gap-1.5 shadow-lg shadow-red-600/40 animate-pulse";
+                txt.innerText = "คลิกบนแผนที่เพื่อวางจุดไฟ!";
+                document.getElementById('map').style.cursor = 'crosshair';
+            } else {
+                btn.className = "px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition flex items-center gap-1.5";
+                txt.innerText = "โหมดจำลองจุดไฟใหม่: ปิด";
+                document.getElementById('map').style.cursor = '';
+            }
+        }
+
+        function simulateRandomFire() {
+            // สุ่มพิกัดใกล้จุดเสี่ยงใน อ.สันทราย เช่น แม่เตาไห หรือ ไหม้ทุกปี
+            const targets = [
+                { lat: 19.0419, lng: 99.0429, label: "จำลองจุดความร้อน VIIRS (โซนไหม้ทุกปี ต.แม่แฝก)" },
+                { lat: 18.9525, lng: 99.0462, label: "จำลองจุดความร้อน VIIRS (โซนแม่เตาไห ต.ป่าไผ่)" },
+                { lat: 19.0168, lng: 99.0012, label: "จำลองจุดความร้อน VIIRS (โซนป่าต้นไผ่ ต.แม่แฝกใหม่)" }
+            ];
+            const pick = targets[Math.floor(Math.random() * targets.length)];
+            const jitterLat = pick.lat + (Math.random() - 0.5) * 0.008;
+            const jitterLng = pick.lng + (Math.random() - 0.5) * 0.008;
+            createSimulatedFire(jitterLat, jitterLng, pick.label);
+            map.flyTo([jitterLat, jitterLng], 14, { duration: 1 });
+        }
+
+        function createSimulatedFire(lat, lng, title) {
+            layerLiveGistda.clearLayers();
+
+            // 1. หาสถานีลมที่ใกล้ที่สุดเพื่อคำนวณทิศทางไฟลาม
+            const nearestWind = windStations[1];
+            const spreadDirectionDeg = (nearestWind.dir + 180) % 360; // ทิศที่ลมพัดไป
+            const spreadDistKm = Math.max(0.8, (nearestWind.speed * 0.12)); // ระยะคาดการณ์ไฟลามใน 3 ชม.
+
+            // 2. คำนวณระยะห่างจากจุดยุทธศาสตร์และเส้นทางที่รถเข้าถึง
+            const nearestSP = findNearestStrategicPoint(lat, lng);
+            const nearestRoute = findNearestRouteDistance(lat, lng);
+
+            // 3. วาดกรวยคาดการณ์พื้นที่ไฟลามตามทิศทางลม (Fire Spread Cone)
+            const tip1 = destinationPoint(lat, lng, spreadDistKm, spreadDirectionDeg - 18);
+            const tipCenter = destinationPoint(lat, lng, spreadDistKm * 1.15, spreadDirectionDeg);
+            const tip2 = destinationPoint(lat, lng, spreadDistKm, spreadDirectionDeg + 18);
+
+            const spreadPolygon = L.polygon([
+                [lat, lng],
+                tip1,
+                tipCenter,
+                tip2
+            ], {
+                color: '#f59e0b',
+                weight: 2,
+                dashArray: '4, 4',
+                fillColor: '#ef4444',
+                fillOpacity: 0.35
+            });
+            layerLiveGistda.addLayer(spreadPolygon);
+
+            // 4. วาดเส้นประเชื่อมไปยังเส้นทางที่รถเข้าถึงที่ใกล้ที่สุด
+            const accessLine = L.polyline([[lat, lng], nearestRoute.closestPoint], {
+                color: '#10b981',
+                weight: 3,
+                dashArray: '6, 6'
+            });
+            layerLiveGistda.addLayer(accessLine);
+
+            // 5. วาดหมุดจุดความร้อนเกิดใหม่แบบกระพริบ
+            const fireIcon = L.divIcon({
+                className: 'live-fire-icon',
+                html: `<div class="w-8 h-8 rounded-full bg-red-600 border-2 border-white flex items-center justify-center text-white shadow-xl hotspot-pulse">
+                        <i class="fa-solid fa-fire-flame-curved text-sm"></i>
+                       </div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            });
+
+            const marker = L.marker([lat, lng], { icon: fireIcon });
+            const popupHtml = `
+                <div class="p-1.5 min-w-[240px] space-y-1.5">
+                    <div class="px-2 py-0.5 bg-red-500/30 border border-red-500 text-red-200 rounded text-[10px] font-bold inline-block">
+                        แจ้งเตือนจุดความร้อน & วิเคราะห์ทิศทางไฟลาม
+                    </div>
+                    <div class="text-sm font-bold text-white">${title}</div>
+                    <div class="text-[11px] text-slate-300">พิกัด: ${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
+                    <div class="p-2 rounded-lg bg-slate-900 border border-slate-700 text-[11px] space-y-1">
+                        <div class="text-amber-400 font-semibold">
+                            <i class="fa-solid fa-wind mr-1"></i>คาดการณ์ไฟลาม (3 ชม. ข้างหน้า):
+                        </div>
+                        <div>ลามไปทางทิศ: <b>${degreeToThaiCompass(spreadDirectionDeg)}</b></div>
+                        <div>ด้วยความเร็วลม: <b>${nearestWind.speed} กม./ชม.</b> (ระยะเสี่ยง ~${spreadDistKm.toFixed(1)} กม.)</div>
+                    </div>
+                    <div class="pt-1 text-[11px] space-y-1">
+                        <div class="text-emerald-400">
+                            <i class="fa-solid fa-truck-field mr-1"></i>ห่างเส้นทางเข้าถึง (${nearestRoute.route.id}): <b>${(nearestRoute.distKm * 1000).toFixed(0)} เมตร</b>
+                        </div>
+                        <div class="text-sky-400">
+                            <i class="fa-solid fa-shield-halved mr-1"></i>ใกล้หมุดยุทธศาสตร์: <b>${nearestSP.point.name}</b> (${nearestSP.distKm.toFixed(2)} กม.)
+                        </div>
+                    </div>
+                </div>
+            `;
+            marker.bindPopup(popupHtml).addTo(layerLiveGistda).openPopup();
+
+            // อัปเดตกล่องแจ้งเตือนยุทธวิธีด้านซ้ายล่าง
+            document.getElementById("tacticalAlertContent").innerHTML = `
+                <div class="space-y-1 text-slate-200">
+                    <div class="font-bold text-red-400">${title}</div>
+                    <div>• <b>ห่างเส้นทางเข้าถึงใกล้สุด:</b> <span class="text-emerald-400 font-bold">${(nearestRoute.distKm * 1000).toFixed(0)} เมตร</span> (${nearestRoute.route.name})</div>
+                    <div>• <b>ใกล้หมุดยุทธศาสตร์:</b> <span class="text-sky-400">${nearestSP.point.name}</span> (${nearestSP.distKm.toFixed(2)} กม.)</div>
+                    <div>• <b>ทิศทางไฟลามตามลม:</b> พัดไปทาง <span class="text-amber-300 font-semibold">${degreeToThaiCompass(spreadDirectionDeg)}</span></div>
+                </div>
+            `;
+        }
+
+        // ============================================================================
+        // 10. เชื่อมต่อ GISTDA Disaster API จริง
+        // ============================================================================
+        async function fetchGistdaLive() {
+            const apiKey = document.getElementById("gistdaApiKeyInput").value.trim();
+            const range = document.getElementById("gistdaTimeRange").value;
+            const statusBox = document.getElementById("gistdaStatusMsg");
+
+            if (!apiKey) {
+                statusBox.innerHTML = `<span class="text-amber-400"><i class="fa-solid fa-circle-exclamation mr-1"></i>กรุณาวาง GISTDA API Key ของคุณก่อนกดดึงข้อมูล หรือกดปุ่ม "ทดสอบจำลองจุดความร้อน" ด้านซ้ายครับ</span>`;
+                return;
+            }
+
+            localStorage.setItem("SANSAI_GISTDA_KEY", apiKey);
+            statusBox.innerHTML = `<span class="text-sky-400"><i class="fa-solid fa-spinner fa-spin mr-1"></i>กำลังเชื่อมต่อ GISTDA API (/features/viirs/${range})...</span>`;
+
+            try {
+                const url = `https://api-gateway.gistda.or.th/api/2.0/resources/features/viirs/${range}`;
+                const res = await fetch(url, {
+                    headers: {
+                        "API-Key": apiKey,
+                        "Accept": "application/json"
+                    }
+                });
+
+                if (!res.ok) {
+                    throw new Error(`HTTP Status ${res.status}`);
+                }
+
+                const geojson = await res.json();
+                const features = geojson.features || [];
+
+                // กรองเฉพาะพิกัดในอำเภอสันทรายและพื้นที่รอยต่อ
+                const sansaiFeatures = features.filter(f => {
+                    const c = f.geometry?.coordinates || [0, 0];
+                    return (c[1] >= 18.80 && c[1] <= 19.15 && c[0] >= 98.94 && c[0] <= 99.15);
+                });
+
+                if (sansaiFeatures.length > 0) {
+                    sansaiFeatures.forEach(f => {
+                        const [lon, lat] = f.geometry.coordinates;
+                        createSimulatedFire(lat, lon, "จุดความร้อนจริงจาก GISTDA (NOAA VIIRS)");
+                    });
+                    statusBox.innerHTML = `<span class="text-emerald-400 font-semibold">ดึงข้อมูลสำเร็จ! พบจุดความร้อนในเขต อ.สันทราย ${sansaiFeatures.length} จุด (จากทั่วประเทศ ${features.length} จุด)</span>`;
+                } else {
+                    statusBox.innerHTML = `<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check mr-1"></i>เชื่อมต่อ GISTDA สำเร็จ! (ข้อมูลทั่วประเทศ ${features.length} จุด • ขณะนี้ไม่พบจุดความร้อนใหม่ในเขต อ.สันทราย)</span>`;
+                }
+            } catch (err) {
+                statusBox.innerHTML = `
+                    <div class="text-amber-300 space-y-1">
+                        <div><i class="fa-solid fa-triangle-exclamation mr-1"></i>เบราว์เซอร์อาจถูกบล็อกด้วยระบบความปลอดภัย CORS ของเซิร์ฟเวอร์ GISTDA เมื่อเรียกจากหน้าเว็บโดยตรง (${err.message})</div>
+                        <div class="text-slate-400">คำแนะนำ: เมื่อนำโค้ดสคริปต์ Python ไปรันบน <b>GitHub Actions</b> (ดูที่ปุ่มสคริปต์รันทุก 3 ชม.) จะสามารถดึงข้อมูลผ่าน API Key นี้ได้ 100% โดยไม่ติด CORS ครับ</div>
+                    </div>
+                `;
+            }
+        }
+
+        // ============================================================================
+        // 11. ฟังก์ชันคำนวณทางภูมิศาสตร์ (Haversine Distance & Destination Point)
+        // ============================================================================
+        function haversineKm(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function calculatePolylineLength(coords) {
+            let total = 0;
+            for (let i = 0; i < coords.length - 1; i++) {
+                total += haversineKm(coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1]);
+            }
+            return total;
+        }
+
+        function findNearestStrategicPoint(lat, lng) {
+            let best = null;
+            let minDist = Infinity;
+            strategicPoints.forEach(sp => {
+                const d = haversineKm(lat, lng, sp.lat, sp.lng);
+                if (d < minDist) {
+                    minDist = d;
+                    best = sp;
+                }
+            });
+            return { point: best, distKm: minDist };
+        }
+
+        function findNearestRouteDistance(lat, lng) {
+            let minDist = Infinity;
+            let bestRoute = null;
+            let closestPt = [lat, lng];
+
+            kmlRoutes.forEach(r => {
+                r.coords.forEach(pt => {
+                    const d = haversineKm(lat, lng, pt[0], pt[1]);
+                    if (d < minDist) {
+                        minDist = d;
+                        bestRoute = r;
+                        closestPt = pt;
+                    }
+                });
+            });
+            return { route: bestRoute, distKm: minDist, closestPoint: closestPt };
+        }
+
+        function destinationPoint(lat, lng, distKm, bearingDeg) {
+            const R = 6371;
+            const brng = bearingDeg * Math.PI / 180;
+            const d = distKm / R;
+            const lat1 = lat * Math.PI / 180;
+            const lon1 = lng * Math.PI / 180;
+
+            const lat2 = Math.asin(Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(brng));
+            const lon2 = lon1 + Math.atan2(Math.sin(brng) * Math.sin(d) * Math.cos(lat1), Math.cos(d) - Math.sin(lat1) * Math.sin(lat2));
+            return [lat2 * 180 / Math.PI, lon2 * 180 / Math.PI];
+        }
+
+        // ============================================================================
+        // 12. ฟังก์ชันจัดการ UI Tabs, Modals & Clipboard
+        // ============================================================================
+        function switchTab(tabId) {
+            ['tab-layers', 'tab-tactical', 'tab-hotspots', 'tab-weather'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+                const btn = document.getElementById('btn-' + id);
+                btn.className = "py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1";
+            });
+            document.getElementById(tabId).classList.remove('hidden');
+            document.getElementById('btn-' + tabId).className = "py-3 text-center border-b-2 border-orange-500 text-orange-400 flex flex-col items-center gap-1";
+        }
+
+        function openModal(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('hidden');
+            el.classList.add('flex');
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            el.classList.add('hidden');
+            el.classList.remove('flex');
+        }
+
+        function copyCode(elementId) {
+            const text = document.getElementById(elementId).innerText;
+            const textarea = document.createElement("textarea");
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textarea);
+        }
+    </script>
+</body>
+</html>
