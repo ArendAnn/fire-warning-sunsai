@@ -1,0 +1,19 @@
+name: Update San Sai Fire & Wind Every 3 Hours
+
+on:
+  schedule:
+    - cron: '0 */3 * * *'  # รันอัตโนมัติทุกๆ 3 ชั่วโมง
+  workflow_dispatch:       # กดรันด้วยมือได้ตลอดเวลา
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
