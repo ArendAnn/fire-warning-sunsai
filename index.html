@@ -1563,6 +1563,23 @@ jobs:
             document.execCommand("copy");
             document.body.removeChild(textarea);
         }
+        // ฟังก์ชันดึงพิกัดกำลังพล 11 นายจาก Google Apps Script Web App
+function fetchPersonnelLocations() {
+    const webAppUrl = "ใส่_Google_Apps_Script_Web_App_URL_ของคุณที่นี่";
+    
+    fetch(webAppUrl)
+        .then(response => response.json())
+        .then(data => {
+            data.forEach(person => {
+                console.log(`กำลังพล ${person.name}: พิกัด ${person.lat}, ${person.lng}`);
+            });
+        })
+        .catch(error => console.error('เกิดข้อผิดพลาดในการดึงพิกัด:', error));
+}
+
+// เรียกใช้งานทุกๆ 10 วินาที
+setInterval(fetchPersonnelLocations, 10000);
+fetchPersonnelLocations();
     </script>
 </body>
 </html>
