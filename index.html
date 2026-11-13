@@ -46,4 +46,454 @@
         ::-webkit-scrollbar-track {
             background: #1e293b;
         }
-        ::-webkit-scrollbar-thumb
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        /* Leaflet Popup Custom Styling */
+        .leaflet-popup-content-wrapper {
+            background: rgba(15, 23, 42, 0.95) !important;
+            color: #f8fafc !important;
+            border: 1px solid #334155;
+            border-radius: 0.75rem !important;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5) !important;
+        }
+        .leaflet-popup-tip {
+            background: rgba(15, 23, 42, 0.95) !important;
+        }
+        .leaflet-container {
+            font-family: 'Sarabun', sans-serif !important;
+            background: #0b1120;
+        }
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            80%, 100% { transform: scale(2.4); opacity: 0; }
+        }
+        .hotspot-pulse::before {
+            content: '';
+            position: absolute;
+            inset: -6px;
+            border-radius: 50%;
+            background-color: #ef4444;
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+            z-index: -1;
+        }
+        .personnel-pulse::before {
+            content: '';
+            position: absolute;
+            inset: -6px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+            z-index: -1;
+        }
+        .wind-arrow-icon {
+            transition: transform 0.5s ease-out;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col select-none">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900/95 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 z-30 shadow-lg">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-md shadow-red-600/30">
+                <i class="fa-solid fa-fire-flame-curved text-white text-xl"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2">
+                    <h1 class="text-base md:text-lg font-bold tracking-wide text-white">ศูนย์ปฏิบัติการเฝ้าระวังและควบคุมไฟป่า อำเภอสันทราย</h1>
+                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-red-500/20 text-red-400 border border-red-500/30 rounded-full">ไฟป่า 2570</span>
+                </div>
+                <p class="text-xs text-slate-400">กองร้อยอาสารักษาดินแดนอำเภอสันทราย ที่ 15 • ระบบแผนที่ยุทธวิธี & ดาวเทียม NOAA (VIIRS)</p>
+            </div>
+        </div>
+
+        <!-- Quick Status Indicators -->
+        <div class="flex items-center flex-wrap gap-2 md:gap-4">
+            <!-- Real-time Weather Summary Pill -->
+            <div id="topWeatherPill" class="flex items-center gap-3 bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
+                <div class="flex items-center gap-1.5 text-amber-400">
+                    <i class="fa-solid fa-temperature-half"></i>
+                    <span id="navTemp">--°C</span>
+                </div>
+                <div class="h-3 w-[1px] bg-slate-700"></div>
+                <div class="flex items-center gap-1.5 text-sky-400">
+                    <i class="fa-solid fa-droplet"></i>
+                    <span id="navHum">--%</span>
+                </div>
+                <div class="h-3 w-[1px] bg-slate-700"></div>
+                <div class="flex items-center gap-1.5 text-emerald-400">
+                    <i class="fa-solid fa-wind"></i>
+                    <span id="navWind">-- กม./ชม.</span>
+                </div>
+            </div>
+
+            <!-- Simulate Hotspot Button -->
+            <button id="btnToggleSimMode" onclick="toggleSimMode()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-crosshairs"></i>
+                <span id="simModeText">โหมดจำลองจุดไฟใหม่: ปิด</span>
+            </button>
+
+            <!-- GISTDA API Modal Button -->
+            <button onclick="openModal('gistdaModal')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition flex items-center gap-1.5 shadow-md shadow-blue-600/20">
+                <i class="fa-solid fa-satellite"></i>
+                <span>เชื่อมต่อ GISTDA API</span>
+            </button>
+
+            <!-- Python Script Guide Button -->
+            <button onclick="openModal('scriptModal')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+                <i class="fa-brands fa-github"></i>
+                <span class="hidden sm:inline">สคริปต์รันทุก 3 ชม.</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Layout -->
+    <div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+        
+        <!-- Left Sidebar: Controls, Filters & Analytics -->
+        <aside class="w-full lg:w-96 bg-slate-900 border-r border-slate-800 flex flex-col h-72 lg:h-full z-20 shrink-0">
+            
+            <!-- Sidebar Tabs -->
+            <div class="grid grid-cols-4 border-b border-slate-800 bg-slate-950/50 text-xs font-medium">
+                <button onclick="switchTab('tab-layers')" id="btn-tab-layers" class="py-3 text-center border-b-2 border-orange-500 text-orange-400 flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-layer-group text-sm"></i>
+                    <span>ชั้นข้อมูล</span>
+                </button>
+                <button onclick="switchTab('tab-tactical')" id="btn-tab-tactical" class="py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-shield-halved text-sm"></i>
+                    <span>จุดยุทธศาสตร์</span>
+                </button>
+                <button onclick="switchTab('tab-hotspots')" id="btn-tab-hotspots" class="py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-fire text-sm"></i>
+                    <span>สถิติ 128 จุด</span>
+                </button>
+                <button onclick="switchTab('tab-weather')" id="btn-tab-weather" class="py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-compass text-sm"></i>
+                    <span>ลม 3 ชม.</span>
+                </button>
+            </div>
+
+            <!-- Tab Content Container -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+
+                <!-- TAB 1: LAYERS & FILTERS -->
+                <div id="tab-layers" class="space-y-4">
+                    <!-- KPI Summary Cards -->
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div class="bg-slate-800/70 border border-slate-700/70 rounded-xl p-3">
+                            <div class="flex items-center justify-between text-xs text-slate-400">
+                                <span>จุดความร้อน KML</span>
+                                <i class="fa-solid fa-fire-burner text-red-400"></i>
+                            </div>
+                            <div class="text-xl font-bold text-white mt-1"><span id="kpiVisibleHotspots">128</span> <span class="text-xs font-normal text-slate-400">/ 128 จุด</span></div>
+                            <div class="text-[11px] text-slate-400 mt-0.5">ก.พ. - พ.ค. 2026</div>
+                        </div>
+                        <div class="bg-slate-800/70 border border-slate-700/70 rounded-xl p-3">
+                            <div class="flex items-center justify-between text-xs text-slate-400">
+                                <span>หมุดยุทธศาสตร์ & เส้นทาง</span>
+                                <i class="fa-solid fa-route text-sky-400"></i>
+                            </div>
+                            <div class="text-xl font-bold text-white mt-1">27 <span class="text-xs font-normal text-slate-400">หมุด</span> • 20 <span class="text-xs font-normal text-slate-400">สาย</span></div>
+                            <div class="text-[11px] text-emerald-400 mt-0.5">พร้อมคำนวณระยะเข้าถึง</div>
+                        </div>
+                    </div>
+
+                    <!-- Map Style Switcher -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
+                        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+                            <i class="fa-solid fa-globe text-sky-400"></i> รูปแบบแผนที่พื้นหลัง
+                        </h3>
+                        <div class="grid grid-cols-3 gap-2 text-xs">
+                            <button onclick="setBaseMap('satellite')" id="bm-satellite" class="py-2 px-2 rounded-lg bg-orange-500/20 border border-orange-500 text-orange-300 font-semibold transition">
+                                ดาวเทียม (NOAA)
+                            </button>
+                            <button onclick="setBaseMap('topo')" id="bm-topo" class="py-2 px-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition">
+                                ภูมิประเทศ
+                            </button>
+                            <button onclick="setBaseMap('osm')" id="bm-osm" class="py-2 px-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700 transition">
+                                ถนน (OSM)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Layer Visibility Toggles -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 space-y-2.5">
+                        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                            <i class="fa-solid fa-eye text-emerald-400"></i> เปิด/ปิด ชั้นข้อมูลบนแผนที่
+                        </h3>
+
+                        <!-- พิกัดกำลังพล (11-Bel) Real-time -->
+                        <div class="p-2 rounded-lg bg-slate-900/80 border border-blue-500/40 space-y-1.5">
+                            <label class="flex items-center justify-between cursor-pointer">
+                                <div class="flex items-center gap-2.5">
+                                    <input type="checkbox" id="chkPersonnel" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                    <span class="text-xs font-semibold text-blue-300">พิกัดกำลังพล & เฝ้าระวัง (11-Bel)</span>
+                                </div>
+                                <span class="w-3 h-3 rounded-full bg-blue-500 ring-2 ring-blue-500/30 animate-pulse"></span>
+                            </label>
+                            <div class="flex items-center justify-between pl-6 pt-0.5 text-[11px] text-slate-400">
+                                <span id="personnelStatusText">กำลังเชื่อมต่อพิกัด OwnTracks...</span>
+                                <button onclick="flyToPersonnel()" class="text-sky-400 hover:text-sky-300 font-medium underline flex items-center gap-1">
+                                    <i class="fa-solid fa-location-crosshairs"></i> ซูมหาหมุด
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <label class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <input type="checkbox" id="chkStrategic" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                <span class="text-xs font-medium text-slate-200">จุดยุทธศาสตร์ & เฝ้าระวัง (27 จุด)</span>
+                            </div>
+                            <span class="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30"></span>
+                        </label>
+
+                        <label class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <input type="checkbox" id="chkRoutes" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                <span class="text-xs font-medium text-slate-200">เส้นทางเข้าถึง / แนวกันไฟ (20 สาย)</span>
+                            </div>
+                            <span class="w-4 h-1 bg-cyan-400 rounded-full"></span>
+                        </label>
+
+                        <label class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <input type="checkbox" id="chkHotspots" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                <span class="text-xs font-medium text-slate-200">จุดความร้อนย้อนหลังปี 2026 (128 จุด)</span>
+                            </div>
+                            <span class="w-3 h-3 rounded-full bg-red-500 ring-2 ring-red-500/30"></span>
+                        </label>
+
+                        <label class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <input type="checkbox" id="chkWind" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                <span class="text-xs font-medium text-slate-200">ลูกศรทิศทางลมปัจจุบัน (Real-time)</span>
+                            </div>
+                            <i class="fa-solid fa-location-arrow text-sky-400 text-xs"></i>
+                        </label>
+
+                        <label class="flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-900 cursor-pointer border border-slate-800">
+                            <div class="flex items-center gap-2.5">
+                                <input type="checkbox" id="chkLiveGistda" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
+                                <span class="text-xs font-medium text-amber-300">จุดความร้อนใหม่ / จำลองไฟลาม</span>
+                            </div>
+                            <span class="w-3 h-3 rounded-full bg-amber-400 animate-ping"></span>
+                        </label>
+                    </div>
+
+                    <!-- Filters for 128 Hotspots -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fa-solid fa-filter text-orange-400"></i> กรองจุดความร้อน (128 จุด)
+                            </h3>
+                            <button onclick="resetFilters()" class="text-[11px] text-sky-400 hover:underline">ล้างตัวกรอง</button>
+                        </div>
+
+                        <!-- Filter by Month -->
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">แยกตามเดือน (ปี 2026)</label>
+                            <select id="filterMonth" onchange="applyHotspotFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                                <option value="ALL">ทั้งหมดทุกเดือน (128 จุด)</option>
+                                <option value="02">กุมภาพันธ์ 2026 (1 จุด - สีเหลือง)</option>
+                                <option value="03">มีนาคม 2026 (90 จุด - สีแดง)</option>
+                                <option value="04">เมษายน 2026 (35 จุด - สีส้ม)</option>
+                                <option value="05">พฤษภาคม 2026 (2 จุด - สีม่วง)</option>
+                            </select>
+                        </div>
+
+                        <!-- Filter by Tambon -->
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">แยกตามตำบล (อ.สันทราย)</label>
+                            <select id="filterTambon" onchange="applyHotspotFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                                <option value="ALL">ทุกตำบล</option>
+                                <option value="แม่แฝกใหม่">ต.แม่แฝกใหม่ (46 จุด)</option>
+                                <option value="แม่แฝก">ต.แม่แฝก (37 จุด)</option>
+                                <option value="ป่าไผ่">ต.ป่าไผ่ (21 จุด)</option>
+                                <option value="หนองหาร">ต.หนองหาร (14 จุด)</option>
+                                <option value="หนองแหย่ง">ต.หนองแหย่ง (9 จุด)</option>
+                                <option value="สันทรายน้อย">ต.สันทรายน้อย (1 จุด)</option>
+                            </select>
+                        </div>
+
+                        <!-- Filter by Land Area -->
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">พื้นที่รับผิดชอบ</label>
+                            <select id="filterAreaType" onchange="applyHotspotFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                                <option value="ALL">ทุกประเภทพื้นที่</option>
+                                <option value="ป่าสงวนแห่งชาติ">ป่าสงวนแห่งชาติ</option>
+                                <option value="ป่าอนุรักษ์">ป่าอนุรักษ์</option>
+                                <option value="ชุมชนและอื่น ๆ">ชุมชนและอื่น ๆ</option>
+                                <option value="พื้นที่เกษตร">พื้นที่เกษตร</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: STRATEGIC POINTS & ROUTES -->
+                <div id="tab-tactical" class="hidden space-y-3">
+                    <div class="flex items-center gap-2">
+                        <div class="relative flex-1">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+                            <input type="text" id="searchStrategic" oninput="renderStrategicList()" placeholder="ค้นหาจุดยุทธศาสตร์ เช่น แม่เตาไห, ไหม้ทุกปี..." class="w-full bg-slate-800 border border-slate-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                        </div>
+                    </div>
+
+                    <!-- Category Filter Pills -->
+                    <div class="flex gap-1.5 overflow-x-auto pb-1 text-[11px]">
+                        <button onclick="setStrategicCat('ALL')" id="scat-ALL" class="px-2.5 py-1 rounded-full bg-orange-500 text-white font-medium shrink-0">ทั้งหมด (27)</button>
+                        <button onclick="setStrategicCat('ยุทธวิธีดับไฟ')" id="scat-ยุทธวิธีดับไฟ" class="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 shrink-0">ยุทธวิธี/เสี่ยงสูง (5)</button>
+                        <button onclick="setStrategicCat('ฐานปฏิบัติการ')" id="scat-ฐานปฏิบัติการ" class="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 shrink-0">ฐานปฏิบัติการ (7)</button>
+                        <button onclick="setStrategicCat('จุดเฝ้าระวัง')" id="scat-จุดเฝ้าระวัง" class="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 shrink-0">จุดเฝ้าระวัง (15)</button>
+                    </div>
+
+                    <div id="strategicListContainer" class="space-y-2"></div>
+                </div>
+
+                <!-- TAB 3: 128 HISTORICAL HOTSPOTS -->
+                <div id="tab-hotspots" class="hidden space-y-3">
+                    <!-- Tambon Breakdown Bars -->
+                    <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3">
+                        <h4 class="text-xs font-semibold text-slate-200 mb-2">สรุปจุดความร้อนรายตำบล (128 จุด)</h4>
+                        <div id="tambonStatsBars" class="space-y-1.5 text-xs"></div>
+                    </div>
+
+                    <div class="flex items-center justify-between text-xs text-slate-400 px-1">
+                        <span>รายการจุดความร้อนที่ตรงตามตัวกรอง</span>
+                        <span id="hotspotListCount" class="font-semibold text-orange-400">128 รายการ</span>
+                    </div>
+
+                    <div id="hotspotListContainer" class="space-y-2 max-h-96 overflow-y-auto pr-1"></div>
+                </div>
+
+                <!-- TAB 4: REAL-TIME WIND & 3-HOUR FORECAST -->
+                <div id="tab-weather" class="hidden space-y-3">
+                    <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-3.5">
+                        <div class="flex items-center justify-between mb-2">
+                            <div>
+                                <h3 class="text-xs font-bold text-white flex items-center gap-1.5">
+                                    <i class="fa-solid fa-satellite-dish text-emerald-400"></i> สภาพอากาศและทิศทางลม อ.สันทราย
+                                </h3>
+                                <p class="text-[11px] text-slate-400">อัปเดตล่าสุดจาก Open-Meteo API</p>
+                            </div>
+                            <button onclick="fetchAllWeather()" class="p-1.5 rounded-lg bg-slate-700/70 hover:bg-slate-700 text-sky-400 text-xs" title="ดึงข้อมูลใหม่">
+                                <i class="fa-solid fa-rotate"></i>
+                            </button>
+                        </div>
+
+                        <div id="weatherStationsCards" class="space-y-2 mt-2">
+                            <div class="text-xs text-slate-400 py-4 text-center">กำลังดึงข้อมูลทิศทางลมจริง...</div>
+                        </div>
+                    </div>
+
+                    <!-- 3-Hour Interval Forecast Table -->
+                    <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
+                        <h4 class="text-xs font-semibold text-slate-200 mb-2 flex items-center gap-1.5">
+                            <i class="fa-regular fa-clock text-amber-400"></i> พยากรณ์ลมล่วงหน้าทุก 3 ชั่วโมง (โซนแม่แฝก/ป่าไผ่)
+                        </h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left text-[11px]">
+                                <thead>
+                                    <tr class="border-b border-slate-700 text-slate-400">
+                                        <th class="py-1.5">เวลา</th>
+                                        <th class="py-1.5">ทิศลม</th>
+                                        <th class="py-1.5">ความเร็วลม</th>
+                                        <th class="py-1.5">ความชื้น</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="forecast3HrTable" class="divide-y divide-slate-800 text-slate-200">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sidebar Footer: Tactical Analysis Box -->
+            <div id="tacticalAlertBox" class="p-3 bg-slate-950 border-t border-slate-800 text-xs">
+                <div class="flex items-center justify-between text-slate-400 mb-1">
+                    <span class="font-semibold text-amber-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-bolt"></i> ระบบวิเคราะห์ยุทธวิธีดับไฟ
+                    </span>
+                    <button onclick="simulateRandomFire()" class="text-[11px] text-amber-300 hover:underline">
+                        + ทดสอบจำลองไฟเกิดใหม่
+                    </button>
+                </div>
+                <div id="tacticalAlertContent" class="text-[11px] text-slate-300 leading-relaxed">
+                    คลิกปุ่ม <b class="text-amber-300">"โหมดจำลองจุดไฟใหม่"</b> ด้านบน แล้วคลิกจุดใดก็ได้บนแผนที่ เพื่อคำนวณทิศทางไฟลามตามลมและหาเส้นทางที่รถเข้าถึงใกล้ที่สุด
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Interactive Map -->
+        <main class="flex-1 relative h-full">
+            <div id="map" class="w-full h-full z-10"></div>
+
+            <!-- Floating Map Legend (Bottom Right) -->
+            <div class="absolute bottom-5 right-4 z-20 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 shadow-xl max-w-xs text-[11px] space-y-1.5">
+                <div class="font-bold text-slate-200 flex items-center justify-between mb-1">
+                    <span>สัญลักษณ์แผนที่ (ไฟป่า 2570)</span>
+                    <button onclick="fitAllBounds()" class="text-sky-400 hover:underline text-[10px]">ดูทั้งอำเภอ</button>
+                </div>
+                <div class="grid grid-cols-2 gap-x-3 gap-y-1">
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-500 border border-white"></span> <span>กำลังพล (11-Bel)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500 border border-white"></span> <span>ฐานปฏิบัติการ</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 border border-white"></span> <span>จุดเสี่ยง/ยุทธวิธี</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white"></span> <span>จุดเฝ้าระวัง</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-3.5 h-1 bg-cyan-400 rounded"></span> <span>เส้นทางเข้าถึง</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span> <span>ก.พ. (1 จุด)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> <span>มี.ค. (90 จุด)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span> <span>เม.ย. (35 จุด)</span></div>
+                    <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> <span>พ.ค. (2 จุด)</span></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODAL 1: GISTDA API CONNECTION -->
+    <div id="gistdaModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
+                        <i class="fa-solid fa-satellite"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">ตั้งค่าการเชื่อมต่อ GISTDA Disaster API</h3>
+                        <p class="text-[11px] text-slate-400">ดึงข้อมูลจุดความร้อน VIIRS จากดาวเทียม NOAA-20</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('gistdaModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">GISTDA API Key ของคุณ:</label>
+                    <input type="password" id="gistdaApiKeyInput" placeholder="วางรหัส API Key ที่ได้จากเว็บไซต์ GISTDA ที่นี่..." class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+                    <p class="text-[11px] text-slate-400 mt-1">* รหัสคีย์จะถูกบันทึกไว้ในเบราว์เซอร์เครื่องของคุณเท่านั้น (LocalStorage) ไม่มีการส่งออกไปที่อื่น</p>
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 font-medium mb-1">ช่วงเวลาข้อมูลจุดความร้อน (Endpoint):</label>
+                    <select id="gistdaTimeRange" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-white">
+                        <option value="1day">ย้อนหลัง 1 วัน (/features/viirs/1day)</option>
+                        <option value="3days">ย้อนหลัง 3 วัน (/features/viirs/3days)</option>
+                        <option value="7days">ย้อนหลัง 7 วัน (/features/viirs/7days)</option>
+                    </select>
+                </div>
+
+                <div id="gistdaStatusMsg" class="p-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-300 text-[11px] leading-relaxed">
+                    พร้อมเชื่อมต่อกับ: <code class="text-sky-400">https://api-gateway.gistda.or.th/api/2.0/resources/features/viirs/1day</code>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+                <button onclick="simulateRandomFire(); closeModal('gistdaModal');" class="px-3.5 py-2 rounded-xl text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/3
