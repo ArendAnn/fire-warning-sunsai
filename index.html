@@ -1285,14 +1285,6 @@ jobs:
         // ============================================================================
         // 8. ดึงข้อมูลทิศทางลมและสภาพอากาศจริง (Open-Meteo API ทุก 3 ชั่วโมง)
         // ============================================================================
-        
-        function getWindDangerBadge(speed) {
-            if (speed < 10) return { level: "ลมสงบ / ปกติ", color: "text-emerald-400 bg-emerald-500/20 border-emerald-500/30", multiplier: 1.0 };
-            if (speed < 20) return { level: "ลมปานกลาง (เฝ้าระวัง)", color: "text-amber-400 bg-amber-500/20 border-amber-500/30", multiplier: 1.4 };
-            if (speed < 30) return { level: "ลมค่อนข้างแรง (ไฟลามเร็ว)", color: "text-orange-400 bg-orange-500/20 border-orange-500/30", multiplier: 1.8 };
-            return { level: "ลมกระโชกแรงจัด (อันตรายสูงสุด/สะเก็ดไฟปลิว)", color: "text-red-400 bg-red-500/20 border-red-500/30", multiplier: 2.5 };
-        }
-
         function degreeToThaiCompass(deg) {
             const dirs = ["เหนือ (N)", "ตะวันออกเฉียงเหนือ (NE)", "ตะวันออก (E)", "ตะวันออกเฉียงใต้ (SE)", "ใต้ (S)", "ตะวันตกเฉียงใต้ (SW)", "ตะวันตก (W)", "ตะวันตกเฉียงเหนือ (NW)"];
             return dirs[Math.round(deg / 45) % 8];
@@ -1449,13 +1441,10 @@ jobs:
         function createSimulatedFire(lat, lng, title) {
             layerLiveGistda.clearLayers();
 
-            // 1. หาสถานีลมที่ใกล้ที่สุดเพื่อคำนวณทิศทางไฟลามและความเร็วลม
+            // 1. หาสถานีลมที่ใกล้ที่สุดเพื่อคำนวณทิศทางไฟลาม
             const nearestWind = windStations[1];
             const spreadDirectionDeg = (nearestWind.dir + 180) % 360; // ทิศที่ลมพัดไป
-            
-            // วิเคราะห์ระดับความอันตรายจากความเร็วลมแบบเรียลไทม์
-            const windAnalysis = getWindDangerBadge(nearestWind.speed);
-            const spreadDistKm = Math.max(0.8, (nearestWind.speed * 0.15 * windAnalysis.multiplier)); // ระยะคาดการณ์ไฟลามใน 3 ชม. ตามความเร็วลม
+            const spreadDistKm = Math.max(0.8, (nearestWind.speed * 0.12)); // ระยะคาดการณ์ไฟลามใน 3 ชม.
 
             // 2. คำนวณระยะห่างจากจุดยุทธศาสตร์และเส้นทางที่รถเข้าถึง
             const nearestSP = findNearestStrategicPoint(lat, lng);
@@ -1670,7 +1659,7 @@ jobs:
             document.getElementById('btn-' + tabId).className = "py-3 text-center border-b-2 border-orange-500 text-orange-400 flex flex-col items-center gap-1";
         }
 
-        openModal(id) {
+        function openModal(id) {
             const el = document.getElementById(id);
             el.classList.remove('hidden');
             el.classList.add('flex');
