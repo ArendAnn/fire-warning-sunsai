@@ -868,8 +868,8 @@ jobs:
         let currentPersonnelLatLng = [18.848664, 99.045397];
         let personnelMarker = null;
 
-        // URL ของ Google Apps Script สำหรับดึงพิกัด OwnTracks (11-Bel)
-        const GAS_WEBAPP_URL = localStorage.getItem("SANSAI_GAS_URL") || "";
+        // URL ของ Google Apps Script สำหรับดึงพิกัด OwnTracks (อส. 11 นาย)
+        const GAS_WEBAPP_URL = localStorage.getItem("SANSAI_GAS_URL") || "https://script.google.com/macros/s/AKfycbzf1A4RMck9w5fYyDhRgUUPaEnuHGkZGrVvmBy21G8ofA8kMAivMMW1BPoczPTs0Q/exec";
 
         window.onload = function() {
             initMap();
@@ -880,8 +880,7 @@ jobs:
             renderTambonSummaryBars();
             fetchAllWeather();
 
-            // แสดงหมุดกำลังพลเริ่มต้น (11-Bel) ทันที และดึงข้อมูลอัปเดตทุก 10 วินาที
-            updatePersonnelMarkerOnMap(18.848664, 99.045397, "11-Bel", "ล่าสุด", 55, "ปฏิบัติงาน (OwnTracks)");
+            // ดึงข้อมูลพิกัดและแบตเตอรี่จริงจาก Google Sheets ทันที และอัปเดตทุก 10 วินาที
             loadPersonnelLocations();
             setInterval(loadPersonnelLocations, 10000);
 
