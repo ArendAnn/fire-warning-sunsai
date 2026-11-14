@@ -1021,48 +1021,74 @@ jobs:
             }
         }
 
-        async function loadPersonnelLocations() {
+       async function loadPersonnelLocations() {
             const defaultUrl = "https://script.google.com/macros/s/AKfycbzf1A4RMck9w5fYyDhRgUUPaEnuHGkZGrVvmBy21G8ofA8kMAivMMW1BPoczPTs0Q/exec";
-            const urlToFetch = (typeof GAS_WEBAPP_URL !== 'undefined' && GAS_WEBAPP_URL) ? GAS_WEBAPP_URL : defaultUrl;
+            const urlToFetch = (typeof GAS_WEBAPP_URL !== 'undefined' && GAS_WEBAPP_URL && GAS_WEBAPP_URL.startsWith("http")) ? GAS_WEBAPP_URL : defaultUrl;
 
             try {
-                const res = await fetch(urlToFetch);
+                const res = await fetch(urlToFetch, { redirect: "follow" });
                 const data = await res.json();
-                const records = Array.isArray(data) ? data : (data.records || [data]);
+                const records = Array.isArray(data) ? data : (data.records || data.data || [data]);
 
                 const latestByPerson = {};
                 records.forEach(row => {
                     if (!row) return;
-                    const lat = parseFloat(row.lat !== undefined ? row.lat : row.Lat);
-                    const lng = parseFloat(row.lng !== undefined ? row.lng : (row.lon !== undefined ? row.lon : row.Lng));
-                    if (!isNaN(lat) && !isNaN(lng)) {
-                        const rawName = row.name || row.Name || row.user || row.device || "";
-                        const rawTid = row.tid || row.TrackerID || "";
+                    
+                    let lat, lng, rawName, rawTid, batt, time, status;
+                    if (Array.isArray(row)) {
+                        time = row[0] || "ล่าสุด";
+                        rawName = row[1] || "11-Bel";
+                        lat = parseFloat(row[2]);
+                        lng = parseFloat(row[3]);
+                        batt = row[4] !== undefined ? row[4] : "--";
+                        status = row[5] || "ปฏิบัติงาน (OwnTracks)";
+                    } else {
+                        lat = parseFloat(row.lat ?? row.Lat ?? row.latitude ?? row.Latitude);
+                        lng = parseFloat(row.lng ?? row.lon ?? row.Lng ?? row.Lon ?? row.longitude ?? row.Longitude);
+                        rawName = row.name || row.Name || row.user || row.User || row.device || row.DeviceID || row.topic || "";
+                        rawTid = row.tid || row.TrackerID || row.trackerId || "";
+                        batt = row.battery ?? row.batt ?? row.Battery ?? row.Batt ?? "--";
+                        time = row.time || row.timestamp || row.Timestamp || row.UpdatedAt || "ล่าสุด";
+                        status = row.status || row.Status || "ปฏิบัติงาน (OwnTracks)";
+                    }
+
+                    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
                         const standardName = normalizePersonnelId(rawName, rawTid);
                         latestByPerson[standardName] = {
                             lat: lat,
                             lng: lng,
                             name: standardName,
-                            batt: row.battery !== undefined ? row.battery : (row.batt !== undefined ? row.batt : (row.Battery || 100)),
-                            time: row.time || row.timestamp || row.UpdatedAt || "ล่าสุด",
-                            status: row.status || row.Status || "ปฏิบัติงาน (OwnTracks)"
+                            batt: batt,
+                            time: time,
+                            status: status
                         };
                     }
                 });
 
                 const activeList = Object.values(latestByPerson);
-                activeList.forEach(p => {
-                    updatePersonnelMarkerOnMap(p.lat, p.lng, p.name, p.time, p.batt, p.status);
-                });
-
                 const statusEl = document.getElementById("personnelStatusText");
-                if (statusEl && activeList.length > 0) {
-                    statusEl.innerHTML = `• ออนไลน์ ${activeList.length} นาย (ล่าสุด: ${activeList[activeList.length - 1].name})`;
+
+                if (activeList.length > 0) {
+                    activeList.forEach(p => {
+                        updatePersonnelMarkerOnMap(p.lat, p.lng, p.name, p.time, p.batt, p.status);
+                    });
+                    if (statusEl) {
+                        const latestPerson = activeList[activeList.length - 1];
+                        statusEl.innerHTML = `• ออนไลน์ ${activeList.length} นาย (${latestPerson.name}: แบต ${latestPerson.batt}%)`;
+                    }
+                } else {
+                    if (statusEl) {
+                        statusEl.innerHTML = `• แสดงพิกัดเริ่มต้น (รอข้อมูลจาก Google Sheets)`;
+                    }
                 }
             } catch (err) {
-                console.debug("OwnTracks fetch skipped:", err.message);
+                console.warn("OwnTracks fetch warning:", err);
+                const statusEl = document.getElementById("personnelStatusText");
+                if (statusEl) {
+                    statusEl.innerHTML = `• แสดงพิกัดล่าสุด: 11-Bel (ออฟไลน์/รอซิงค์)`;
+                }
             }
-        }
+        } 
 
         function zoomToPersonnel() {
             const chk = document.getElementById('chkPersonnel');
