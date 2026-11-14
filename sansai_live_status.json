@@ -1,6 +1,13 @@
 {
-  "updated_at": "2026-11-14 06:41:31",
-  "wind_sansai": {},
+  "updated_at": "2026-11-14 06:53:18",
+  "wind_sansai": {
+    "time": "2026-11-14T13:45",
+    "interval": 900,
+    "temperature_2m": 27.9,
+    "relative_humidity_2m": 52,
+    "wind_speed_10m": 2.6,
+    "wind_direction_10m": 192
+  },
   "active_hotspots_count": 0,
   "active_hotspots": []
 }
