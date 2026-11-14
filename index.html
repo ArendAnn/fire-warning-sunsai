@@ -1779,6 +1779,143 @@ jobs:
             document.execCommand("copy");
             document.body.removeChild(textarea);
         }
+        // ==========================================
+        // ระบบดึงจุดความร้อน GISTDA (เฉพาะ อ.สันทราย) และแสดงหมุดรูปไฟ 🔥
+        // ==========================================
+        const layerGistdaLive = L.layerGroup().addTo(map);
+
+        // 1. ฟังก์ชันคัดกรองเฉพาะพื้นที่ "อำเภอสันทราย จ.เชียงใหม่" 100%
+        function isSansaiHotspot(item) {
+            const props = item.properties || item;
+            const amphoe = String(props.ap_tn || props.amphoe || props.amphoe_t || props.district || "").trim();
+            const apCode = String(props.ap_idn || props.ap_code || "").trim();
+
+            // เช็กชั้นที่ 1: ชื่ออำเภอมีคำว่า "สันทราย" หรือรหัสอำเภอ 5006
+            if (amphoe.includes("สันทราย") || amphoe.toLowerCase().includes("san sai") || apCode === "5006") {
+                return true;
+            }
+            // ถ้ามีชื่ออำเภออื่นระบุชัดเจน (เช่น แม่ริม, ดอยสะเก็ด) ให้ตัดทิ้งทันที
+            if (amphoe !== "") {
+                return false;
+            }
+
+            // เช็กชั้นที่ 2: กรณีไม่มีชื่ออำเภอ ให้เช็กกรอบพิกัด (Bounding Box) ของ อ.สันทราย
+            const geom = item.geometry || {};
+            const coords = geom.coordinates || [];
+            const lat = parseFloat(props.lat ?? props.latitude ?? coords[1]);
+            const lng = parseFloat(props.lng ?? props.lon ?? props.longitude ?? coords[0]);
+
+            if (!isNaN(lat) && !isNaN(lng)) {
+                return (lat >= 18.780 && lat <= 19.120 && lng >= 98.950 && lng <= 99.180);
+            }
+            return false;
+        }
+
+        // 2. ฟังก์ชันสร้างหมุด "รูปไฟ 🔥" พร้อมป๊อปอัปแสดงรายละเอียดพิกัด
+        function renderGistdaFireMarkers(hotspots) {
+            layerGistdaLive.clearLayers();
+
+            hotspots.forEach((item) => {
+                const props = item.properties || item;
+                const geom = item.geometry || {};
+                const coords = geom.coordinates || [];
+
+                const lat = parseFloat(props.lat ?? props.latitude ?? coords[1]);
+                const lng = parseFloat(props.lng ?? props.lon ?? props.longitude ?? coords[0]);
+                if (isNaN(lat) || isNaN(lng)) return;
+
+                const tambon = props.tb_tn || props.tambon || props.tambon_t || props.subdistrict || "พื้นที่ อ.สันทราย";
+                const landuse = props.lu_name || props.landuse || props.instrument || "ดาวเทียม VIIRS";
+                const acqDate = props.acq_date || props.date || "วันนี้";
+                const acqTime = props.acq_time || props.time || "ล่าสุด";
+                const confidence = props.confidence || props.conf || "สูง";
+
+                // ไอคอนรูปเปลวไฟกระพริบเตือนภัย
+                const fireIcon = L.divIcon({
+                    className: 'gistda-fire-marker',
+                    html: `
+                        <div class="relative flex items-center justify-center">
+                            <span class="animate-ping absolute inline-flex h-9 w-9 rounded-full bg-red-500 opacity-75"></span>
+                            <div class="relative flex items-center justify-center w-8 h-8 bg-gradient-to-t from-red-700 via-orange-500 to-yellow-400 rounded-full border-2 border-white shadow-lg text-base">
+                                🔥
+                            </div>
+                        </div>
+                    `,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 16],
+                    popupAnchor: [0, -16]
+                });
+
+                const popupHtml = `
+                    <div class="p-2 min-w-[230px] space-y-1.5 text-xs">
+                        <div class="flex items-center justify-between border-b border-red-500/30 pb-1">
+                            <span class="px-2 py-0.5 rounded bg-red-600 text-white font-bold text-[11px]">🔥 GISTDA Hotspot</span>
+                            <span class="text-[11px] text-amber-300 font-semibold">${acqDate} (${acqTime})</span>
+                        </div>
+                        <div class="text-sm font-bold text-red-400 pt-0.5">ต.${tambon} อ.สันทราย</div>
+                        <div class="text-xs text-slate-200"><b>ประเภทพื้นที่:</b> ${landuse}</div>
+                        <div class="text-xs text-slate-200"><b>ความเชื่อมั่น:</b> ${confidence}</div>
+                        <div class="text-[11px] text-amber-200 bg-slate-800/90 p-1.5 rounded font-mono">
+                            <b>พิกัด:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}
+                        </div>
+                        <div class="pt-1 flex gap-1.5">
+                            <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank"
+                               class="flex-1 text-center py-1.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded text-[11px] no-underline">
+                               🗺️ นำทางไปจุดไฟ
+                            </a>
+                        </div>
+                    </div>
+                `;
+
+                const marker = L.marker([lat, lng], { icon: fireIcon, zIndexOffset: 2000 });
+                marker.bindPopup(popupHtml);
+                layerGistdaLive.addLayer(marker);
+            });
+        }
+
+        // 3. ฟังก์ชันดึงข้อมูลจากไฟล์ที่อัปเดตและ GISTDA API ทุกๆ 5 นาที
+        async function fetchRealTimeSansaiHotspots() {
+            let foundSpots = [];
+
+            // 3.1 ดึงจากไฟล์ JSON ที่สคริปต์ Python อัปเดตไว้บน GitHub ก่อน
+            try {
+                const localRes = await fetch("sansai_hotspots.json?t=" + Date.now());
+                if (localRes.ok) {
+                    const localData = await localRes.json();
+                    const list = Array.isArray(localData) ? localData : (localData.features || localData.data || []);
+                    foundSpots = list.filter(isSansaiHotspot);
+                }
+            } catch (e) {
+                console.debug("ยังไม่มีไฟล์ sansai_hotspots.json ในระบบ");
+            }
+
+            // 3.2 ถ้านำ GISTDA API Key มาใส่ในหน้าเว็บ ให้ดึงตรงจาก GISTDA ทันที
+            const apiKey = localStorage.getItem("SANSAI_GISTDA_KEY") || "";
+            if (apiKey && foundSpots.length === 0) {
+                try {
+                    const gistdaUrl = "https://api-gateway.gistda.or.th/api/2.0/resources/maps/viirs/1day?limit=1000&offset=0";
+                    const res = await fetch(gistdaUrl, {
+                        headers: { "API-Key": apiKey }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        const features = data.features || data.data || (Array.isArray(data) ? data : []);
+                        foundSpots = features.filter(isSansaiHotspot);
+                    }
+                } catch (err) {
+                    console.warn("ดึง GISTDA API โดยตรงไม่สำเร็จ:", err);
+                }
+            }
+
+            if (foundSpots.length > 0) {
+                renderGistdaFireMarkers(foundSpots);
+                console.log(`🔥 พบจุดความร้อน GISTDA ใน อ.สันทราย จำนวน ${foundSpots.length} จุด`);
+            }
+        }
+
+        // สั่งให้ดึงข้อมูลทันทีที่เปิดหน้าเว็บ และเช็กซ้ำอัตโนมัติทุกๆ 5 นาที (300,000 มิลลิวินาที)
+        fetchRealTimeSansaiHotspots();
+        setInterval(fetchRealTimeSansaiHotspots, 300000)
     </script>
 </body>
 </html>
