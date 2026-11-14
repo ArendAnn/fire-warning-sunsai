@@ -58,9 +58,8 @@ def send_line_alert(hotspots, wind):
         print("Notice: LINE_CHANNEL_ACCESS_TOKEN not configured. Skipping LINE alert.")
         return
 
-if not hotspots:
+    if not hotspots:
         return
-
     wind_speed = wind.get("wind_speed_10m", 0)
     wind_dir = wind.get("wind_direction_10m", 0)
     temp = wind.get("temperature_2m", 0)
