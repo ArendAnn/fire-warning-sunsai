@@ -54,12 +54,12 @@ def fetch_gistda_viirs():
         return []
 
 def send_line_alert(hotspots, wind):
-    if not LINE_TOKEN or not LINE_TARGET_ID:
-        print("Notice: LINE_CHANNEL_ACCESS_TOKEN or LINE_TARGET_ID not configured. Skipping LINE alert.")
+    if not LINE_TOKEN:
+        print("Notice: LINE_CHANNEL_ACCESS_TOKEN not configured. Skipping LINE alert.")
         return
 
-    if not hotspots:
-        return
+# if not hotspots:
+#     return
 
     wind_speed = wind.get("wind_speed_10m", 0)
     wind_dir = wind.get("wind_direction_10m", 0)
