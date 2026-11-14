@@ -25,6 +25,7 @@ jobs:
       - name: Run GISTDA & Wind Script
         env:
           GISTDA_API_KEY: ${{ secrets.GISTDA_API_KEY }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
         run: python update_fire_data.py
 
       - name: Commit Updated Data
