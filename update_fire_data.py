@@ -75,13 +75,12 @@ def send_line_alert(hotspots, wind):
         msg += f"จุดที่ {idx}: พิกัด {lat:.5f}, {lon:.5f}\n"
         msg += f"📍 Google Maps: https://maps.google.com/?q={lat},{lon}\n"
 
-    url = "https://api.line.me/v2/bot/message/push"
+    url = "https://api.line.me/v2/bot/message/broadcast"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {LINE_TOKEN}"
     }
     payload = {
-        "to": LINE_TARGET_ID,
         "messages": [{"type": "text", "text": msg.strip()}]
     }
 
