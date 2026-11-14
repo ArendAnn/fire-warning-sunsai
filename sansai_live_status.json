@@ -1,9 +1,9 @@
 {
-  "updated_at": "2026-11-14 17:48:56",
+  "updated_at": "2026-11-14 18:29:33",
   "wind_sansai": {
-    "time": "2026-11-15T00:45",
+    "time": "2026-11-15T01:15",
     "interval": 900,
-    "temperature_2m": 19.9,
+    "temperature_2m": 19.7,
     "relative_humidity_2m": 86,
     "wind_speed_10m": 0.6,
     "wind_direction_10m": 34
