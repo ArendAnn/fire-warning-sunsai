@@ -95,19 +95,41 @@ def send_line_alert(hotspots, wind):
 if __name__ == "__main__":
     wind = fetch_wind_data()
     hotspots = fetch_gistda_viirs()
-    
+
+    # อ่านข้อมูลพิกัดจุดความร้อนเดิมที่เคยบันทึกไว้รอบก่อนหน้า
+    old_coords = set()
+    if os.path.exists("sansai_live_status.json"):
+        try:
+            with open("sansai_live_status.json", "r", encoding="utf-8") as f:
+                old_data = json.load(f)
+                for h in old_data.get("active_hotspots", []):
+                    c = h.get("geometry", {}).get("coordinates", [])
+                    if len(c) >= 2:
+                        old_coords.add((round(c[1], 4), round(c[0], 4)))
+        except Exception:
+            pass
+
+    # คัดกรองเฉพาะจุดความร้อนพิกัดใหม่ที่ยังไม่เคยแจ้งเตือน
+    new_hotspots = []
+    for h in hotspots:
+        c = h.get("geometry", {}).get("coordinates", [])
+        if len(c) >= 2:
+            coord_pair = (round(c[1], 4), round(c[0], 4))
+            if coord_pair not in old_coords:
+                new_hotspots.append(h)
+
     output = {
         "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "wind_sansai": wind,
         "active_hotspots_count": len(hotspots),
         "active_hotspots": hotspots
     }
-    
+
     with open("sansai_live_status.json", "w", encoding="utf-8") as f:
         json.dump(output, f, ensure_ascii=False, indent=2)
-        
-    print(f"อัปเดตสำเร็จ: พบจุดความร้อนใน อ.สันทราย {len(hotspots)} จุด")
-    
-    # หากพบจุดความร้อน ให้ส่งแจ้งเตือนเข้า LINE
-    if len(hotspots) > 0:
-        send_line_alert(hotspots, wind)
+
+    print(f"อัปเดตสำเร็จ: พบจุดความร้อนทั้งหมด {len(hotspots)} จุด (จุดใหม่ {len(new_hotspots)} จุด)")
+
+    # ส่งแจ้งเตือนเข้า LINE เฉพาะเมื่อตรวจพบจุดความร้อนพิกัดใหม่เท่านั้น
+    if len(new_hotspots) > 0:
+        send_line_alert(new_hotspots, wind)
