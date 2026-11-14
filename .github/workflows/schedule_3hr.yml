@@ -1,8 +1,8 @@
-name: Update San Sai Fire & Wind Every 3 Hours
+name: Update San Sai Fire & Wind Real-Time
 
 on:
   schedule:
-    - cron: '0 */3 * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:
