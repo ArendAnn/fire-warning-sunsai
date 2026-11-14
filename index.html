@@ -880,7 +880,8 @@ jobs:
             renderTambonSummaryBars();
             fetchAllWeather();
 
-            // ดึงข้อมูลพิกัดและแบตเตอรี่จริงจาก Google Sheets ทันที และอัปเดตทุก 10 วินาที
+            // แสดงหมุด 11-Bel ตั้งต้นไว้ก่อนไม่ให้หมุดหาย แล้วดึงข้อมูลจริงจาก Google Sheets มาทับทุก 10 วินาที
+            updatePersonnelMarkerOnMap(18.848664, 99.045397, "11-Bel", "รอซิงค์ข้อมูล...", "--", "ปฏิบัติงาน (OwnTracks)");
             loadPersonnelLocations();
             setInterval(loadPersonnelLocations, 10000);
 
