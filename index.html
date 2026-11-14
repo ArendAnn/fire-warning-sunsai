@@ -869,7 +869,7 @@ jobs:
         let personnelMarker = null;
 
         // URL ของ Google Apps Script สำหรับดึงพิกัด OwnTracks (อส. 11 นาย)
-        const GAS_WEBAPP_URL = localStorage.getItem("SANSAI_GAS_URL") || "https://script.google.com/macros/s/AKfycbzf1A4RMck9w5fYyDhRgUUPaEnuHGkZGrVvmBy21G8ofA8kMAivMMW1BPoczPTs0Q/exec";
+        const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy2lG8ofA8kMAivMMWW1BPoczPTs0Q/exec";
 
         window.onload = function() {
             initMap();
@@ -1023,7 +1023,7 @@ jobs:
         }
 
        async function loadPersonnelLocations() {
-            const defaultUrl = "https://script.google.com/macros/s/AKfycbzf1A4RMck9w5fYyDhRgUUPaEnuHGkZGrVvmBy21G8ofA8kMAivMMW1BPoczPTs0Q/exec";
+            const defaultUrl = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy2lG8ofA8kMAivMMWW1BPoczPTs0Q/exec";
             const urlToFetch = (typeof GAS_WEBAPP_URL !== 'undefined' && GAS_WEBAPP_URL && GAS_WEBAPP_URL.startsWith("http")) ? GAS_WEBAPP_URL : defaultUrl;
 
             try {
