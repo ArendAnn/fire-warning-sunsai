@@ -1887,7 +1887,7 @@ if (isOffline) {
         // ==========================================
         // ระบบดึงจุดความร้อน GISTDA (เฉพาะ อ.สันทราย) และแสดงหมุดรูปไฟ 🔥
         // ==========================================
-        const layerGistdaLive = L.layerGroup().addTo(map);
+const layerGistdaLive = L.layerGroup();
 
         // 1. ฟังก์ชันคัดกรองเฉพาะพื้นที่ "อำเภอสันทราย จ.เชียงใหม่" 100%
         function isSansaiHotspot(item) {
@@ -1911,13 +1911,16 @@ if (isOffline) {
             const lng = parseFloat(props.lng ?? props.lon ?? props.longitude ?? coords[0]);
 
             if (!isNaN(lat) && !isNaN(lng)) {
-                return (lat >= 18.780 && lat <= 19.120 && lng >= 98.950 && lng <= 99.180);
+                return (lat >= 18.780 && lat <= 19.150 && lng >= 98.940 && lng <= 99.180);
             }
             return false;
         }
 
         // 2. ฟังก์ชันสร้างหมุด "รูปไฟ 🔥" พร้อมป๊อปอัปแสดงรายละเอียดพิกัด
         function renderGistdaFireMarkers(hotspots) {
+            if (map && !map.hasLayer(layerGistdaLive)) {
+                layerGistdaLive.addTo(map);
+            }
             layerGistdaLive.clearLayers();
 
             hotspots.forEach((item) => {
@@ -1978,29 +1981,29 @@ if (isOffline) {
             });
         }
 
-        // 3. ฟังก์ชันดึงข้อมูลจากไฟล์ที่อัปเดตและ GISTDA API ทุกๆ 5 นาที
+        // 3. ฟังก์ชันดึงข้อมูลจากไฟล์ sansai_live_status.json และ GISTDA API ทุกๆ 5 นาที
         async function fetchRealTimeSansaiHotspots() {
             let foundSpots = [];
 
-            // 3.1 ดึงจากไฟล์ JSON ที่สคริปต์ Python อัปเดตไว้บน GitHub ก่อน
+            // 3.1 ดึงจากไฟล์ sansai_live_status.json ที่สคริปต์ Python อัปเดตไว้บน GitHub ก่อน
             try {
-                const localRes = await fetch("sansai_hotspots.json?t=" + Date.now());
+                const localRes = await fetch("sansai_live_status.json?t=" + Date.now());
                 if (localRes.ok) {
                     const localData = await localRes.json();
-                    const list = Array.isArray(localData) ? localData : (localData.features || localData.data || []);
+                    const list = Array.isArray(localData) ? localData : (localData.active_hotspots || localData.features || localData.data || []);
                     foundSpots = list.filter(isSansaiHotspot);
                 }
             } catch (e) {
-                console.debug("ยังไม่มีไฟล์ sansai_hotspots.json ในระบบ");
+                console.debug("ยังไม่มีข้อมูลจุดความร้อนใน sansai_live_status.json");
             }
 
             // 3.2 ถ้านำ GISTDA API Key มาใส่ในหน้าเว็บ ให้ดึงตรงจาก GISTDA ทันที
             const apiKey = localStorage.getItem("SANSAI_GISTDA_KEY") || "";
             if (apiKey && foundSpots.length === 0) {
                 try {
-                    const gistdaUrl = "https://api-gateway.gistda.or.th/api/2.0/resources/maps/viirs/1day?limit=1000&offset=0";
+                    const gistdaUrl = "https://api-gateway.gistda.or.th/api/2.0/resources/features/viirs/1day";
                     const res = await fetch(gistdaUrl, {
-                        headers: { "API-Key": apiKey }
+                        headers: { "API-Key": apiKey, "Accept": "application/json" }
                     });
                     if (res.ok) {
                         const data = await res.json();
@@ -2018,9 +2021,14 @@ if (isOffline) {
             }
         }
 
-        // สั่งให้ดึงข้อมูลทันทีที่เปิดหน้าเว็บ และเช็กซ้ำอัตโนมัติทุกๆ 5 นาที (300,000 มิลลิวินาที)
-        fetchRealTimeSansaiHotspots();
-        setInterval(fetchRealTimeSansaiHotspots, 300000)
+        // รอให้แผนที่สร้างเสร็จก่อนค่อยดึงข้อมูลจุดความร้อน และเช็กซ้ำอัตโนมัติทุกๆ 5 นาที
+        setTimeout(() => {
+            if (map && !map.hasLayer(layerGistdaLive)) {
+                layerGistdaLive.addTo(map);
+            }
+            fetchRealTimeSansaiHotspots();
+            setInterval(fetchRealTimeSansaiHotspots, 300000);
+        }, 1500);
     </script>
 </body>
 </html>
