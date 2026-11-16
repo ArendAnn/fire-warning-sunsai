@@ -1159,7 +1159,7 @@ const allPersonList = Object.values(latestByPerson);
                         isOffline = true;
                     }
 
-                    if (isOffline) {
+if (isOffline) {
                         // ลบเฉพาะหมุดของคนที่ออกเวร/ปิดแอปเกิน 15 นาที ออกจากแผนที่ทันที
                         if (typeof personnelMarkers !== "undefined" && personnelMarkers[p.name]) {
                             if (typeof layerPersonnel !== "undefined" && layerPersonnel) {
@@ -1167,15 +1167,33 @@ const allPersonList = Object.values(latestByPerson);
                             }
                             if (map) map.removeLayer(personnelMarkers[p.name]);
                             delete personnelMarkers[p.name];
+                        }
+                    } else {
+                        // คนที่ยังเข้าเวรปกติ ให้แสดงหมุดต่อไป
+                        activeList.push(p);
+                        updatePersonnelMarkerOnMap(p.lat, p.lng, p.name, p.time, p.batt, p.status);
+                    }
+                });
+
+                const statusEl = document.getElementById("personnelStatusText");
+                if (activeList.length > 0) {
+                    if (statusEl) {
+                        const latestPerson = activeList[activeList.length - 1];
+                        statusEl.innerHTML = `• ออนไลน์ ${activeList.length} นาย (${latestPerson.name}: แบต ${latestPerson.batt}%)`;
+                    }
+                } else {
+                    if (statusEl) {
+                        statusEl.innerHTML = `• ไม่มีเจ้าหน้าที่กำลังเข้าเวร (ปิดการติดตาม/ออกเวรทั้งหมด)`;
+                    }
                 }
             } catch (err) {
                 console.warn("OwnTracks fetch warning:", err);
                 const statusEl = document.getElementById("personnelStatusText");
                 if (statusEl) {
-                    statusEl.innerHTML = `• แสดงพิกัดล่าสุด: 11-Bel (ออฟไลน์/รอซิงค์)`;
+                    statusEl.innerHTML = `• รอซิงค์พิกัดเจ้าหน้าที่ (ออฟไลน์)`;
                 }
             }
-        } 
+        }
 
         function zoomToPersonnel() {
             const chk = document.getElementById('chkPersonnel');
