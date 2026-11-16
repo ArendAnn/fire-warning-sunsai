@@ -440,48 +440,7 @@
         <main class="flex-1 relative h-full">
             <div id="map" class="w-full h-full z-10"></div>
 
-            <!-- FLOATING TACTICAL COMPASS & WIND ROSE (TOP LEFT OF MAP) -->
-            <div class="absolute top-3 left-3 z-20 flex items-center gap-2.5 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl pointer-events-auto">
-                <!-- Compass Dial -->
-                <div class="relative w-16 h-16 rounded-full bg-slate-950 border-2 border-slate-700 flex items-center justify-center shadow-inner">
-                    <!-- Cardinal Directions -->
-                    <span class="absolute top-0.5 text-[10px] font-extrabold text-red-500">N</span>
-                    <span class="absolute bottom-0.5 text-[9px] font-bold text-slate-400">S</span>
-                    <span class="absolute right-1 text-[9px] font-bold text-slate-400">E</span>
-                    <span class="absolute left-1 text-[9px] font-bold text-slate-400">W</span>
-                    <!-- Sub-ticks ring -->
-                    <div class="w-11 h-11 rounded-full border border-dashed border-slate-800"></div>
-
-                    <!-- Fixed North Pointer (Red/White Classic Compass Needle) -->
-                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-35">
-                        <div class="w-1 h-9 flex flex-col">
-                            <div class="h-1/2 bg-red-500 rounded-t-full"></div>
-                            <div class="h-1/2 bg-slate-300 rounded-b-full"></div>
-                        </div>
-                    </div>
-
-                    <!-- Dynamic Wind Spread Arrow (Rotates according to real-time wind blow-to direction) -->
-                    <div id="compassWindNeedle" class="compass-Dial absolute inset-0 flex items-center justify-center" style="transform: rotate(45deg);" title="เข็มทิศทางลมพัดไป (ทิศไฟลาม)">
-                        <div class="flex flex-col items-center -mt-1">
-                            <i class="fa-solid fa-location-arrow text-sky-400 text-base drop-shadow-[0_0_6px_rgba(56,189,248,0.8)]" style="transform: rotate(-45deg);"></i>
-                        </div>
-                    </div>
-                    <!-- Center Pin -->
-                    <div class="w-2 h-2 rounded-full bg-amber-400 border border-slate-950 z-10"></div>
-                </div>
-
-                <!-- Compass Info Text -->
-                <div class="pr-1 text-[11px] space-y-0.5">
-                    <div class="font-bold text-white flex items-center gap-1">
-                        <i class="fa-regular fa-compass text-amber-400"></i> เข็มทิศ & ทิศไฟลาม
-                    </div>
-                    <div class="text-slate-300">ทิศเหนือ: <b class="text-red-400">ด้านบน (0°)</b></div>
-                    <div class="text-slate-300">ลมพัดไป: <b id="compassBlowToText" class="text-sky-400">ตะวันออกเฉียงเหนือ</b></div>
-                    <div class="text-[10px] text-emerald-400 font-semibold" id="compassWindSpeedText">ความเร็วลม: -- กม./ชม.</div>
-                </div>
-            </div>
-
-            <!-- Floating Map Legend (Bottom Right) -->
+           <!-- Floating Map Legend (Bottom Right) -->
             <div class="absolute bottom-5 right-4 z-20 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 shadow-xl max-w-xs text-[11px] space-y-1.5">
                 <div class="font-bold text-slate-200 flex items-center justify-between mb-1">
                     <span>สัญลักษณ์แผนที่ (ไฟป่า 2570)</span>
