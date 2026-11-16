@@ -633,7 +633,7 @@
         </div>
     </div>
 
-    <script>
+  <script>
         // ============================================================================
         // 1. ข้อมูลจุดยุทธศาสตร์และจุดเฝ้าระวัง 27 จุด จากไฟล์ KML "ไฟป่า 2570.kml"
         // ============================================================================
@@ -840,7 +840,6 @@
             utm: item[8]
         }));
 
-        // สถานีตรวจวัดทิศทางลมหลักในพื้นที่ อ.สันทราย (ดึงจาก Open-Meteo จริง)
         const windStations = [
             { id: "WS1", name: "โซนเหนือ (ป่าไม้ห้วยส้ม - ต.แม่แฝก)", lat: 19.0866, lng: 98.9811, temp: 31, hum: 42, speed: 12, dir: 215 },
             { id: "WS2", name: "โซนภูเขาสูง (จุดไหม้ทุกปี - ต.แม่แฝก/แม่แฝกใหม่)", lat: 19.0419, lng: 99.0429, temp: 29, hum: 45, speed: 15, dir: 230 },
@@ -850,7 +849,7 @@
         ];
 
         // ============================================================================
-        // 4. ตัวแปรระบบแผนที่ Leaflet และ Layer Groups
+        // 4. ตัวแปรระบบแผนที่ Leaflet, เข็มทิศ และระบบควบคุมสถานะเข้าเวร/ออกเวรรายบุคคล
         // ============================================================================
         let map;
         let baseMaps = {};
@@ -860,20 +859,17 @@
         let layerWind = L.layerGroup();
         let layerLiveGistda = L.layerGroup();
         let layerPersonnel = L.layerGroup();
+        const layerGistdaLive = L.layerGroup();
 
         let simModeActive = false;
         let selectedStrategicCat = "ALL";
         let currentPersonnelLatLng = [18.848664, 99.045397];
         let personnelMarker = null;
+        let personnelMarkers = {};
 
-        // ตัวแปรเก็บสถานะการแสดงหมุดรวม และรายชื่อคนที่กดซ่อนหมุดรายบุคคล
-        let isTrackingVisible = localStorage.getItem("HIDE_PERSONNEL_PIN") !== "true";
-        let hiddenIndividuals = JSON.parse(localStorage.getItem("HIDDEN_PERSONNEL_LIST") || "[]");
-
-        // URL ของ Google Apps Script สำหรับดึงพิกัด OwnTracks (อส. 11 นาย)
+        // URL ของ Google Apps Script สำหรับดึงพิกัดและบันทึกสถานะเข้าเวร/ออกเวรกลาง
         const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy21G8ofA8kMAivMMWW1BPoczPTs0Q/exec";
 
-        // ตารางรหัสมาตรฐานกำลังพล อส. ทั้ง 11 นาย
         const PERSONNEL_ROSTER = {
             "01": "01-Jaguar",
             "02": "02-Art-Drone",
@@ -888,29 +884,23 @@
             "11": "11-Bel"
         };
 
-        let personnelMarkers = {};
+        // จำชื่อ อส. ประจำเครื่องมือถือ และสถานะการซ่อนหมุดจากเซิร์ฟเวอร์กลาง
+        let mySelectedIdentity = localStorage.getItem("MY_OS_IDENTITY") || "11-Bel";
+        let serverHiddenMap = JSON.parse(localStorage.getItem("SERVER_HIDDEN_MAP") || "{}");
 
         window.onload = function() {
             initMap();
+            createFloatingCompassWidget();
+            createPersonnelDutyBarUI();
             renderStrategicMarkers();
             renderRouteLines();
             applyHotspotFilters();
             renderStrategicList();
             renderTambonSummaryBars();
-            renderIndividualPrivacyList();
             fetchAllWeather();
 
-            // อัปเดตหน้าตาปุ่มเข้าเวร/ออกเวรตอนเปิดเว็บ
-            updateTrackingButtonUI();
-
-            if (isTrackingVisible) {
-                loadPersonnelLocations();
-            }
-            setInterval(() => {
-                if (isTrackingVisible) {
-                    loadPersonnelLocations();
-                }
-            }, 10000);
+            loadPersonnelLocations();
+            setInterval(loadPersonnelLocations, 8000);
 
             setTimeout(() => {
                 if (map) map.invalidateSize();
@@ -922,124 +912,142 @@
             }
         };
 
-        // ฟังก์ชันจัดการความเป็นส่วนตัวรายบุคคล (ซ่อน/แสดงเฉพาะคน)
-        function isPersonHidden(standardName) {
-            return hiddenIndividuals.includes(standardName);
-        }
-
-        function toggleIndividualPrivacy(standardName) {
-            if (hiddenIndividuals.includes(standardName)) {
-                hiddenIndividuals = hiddenIndividuals.filter(n => n !== standardName);
-            } else {
-                hiddenIndividuals.push(standardName);
-                // ลบหมุดของคนนั้นออกจากแผนที่ทันที
-                if (personnelMarkers[standardName]) {
-                    layerPersonnel.removeLayer(personnelMarkers[standardName]);
-                    if (map) map.removeLayer(personnelMarkers[standardName]);
-                    delete personnelMarkers[standardName];
-                }
-            }
-            localStorage.setItem("HIDDEN_PERSONNEL_LIST", JSON.stringify(hiddenIndividuals));
-            renderIndividualPrivacyList();
-            if (isTrackingVisible) {
-                loadPersonnelLocations();
-            }
-        }
-
-        function setAllPersonnelPrivacy(hideAll) {
-            if (hideAll) {
-                hiddenIndividuals = Object.values(PERSONNEL_ROSTER);
-                layerPersonnel.clearLayers();
-                Object.keys(personnelMarkers).forEach(k => {
-                    if (map && personnelMarkers[k]) map.removeLayer(personnelMarkers[k]);
-                });
-                personnelMarkers = {};
-            } else {
-                hiddenIndividuals = [];
-                if (!isTrackingVisible) {
-                    isTrackingVisible = true;
-                    localStorage.setItem("HIDE_PERSONNEL_PIN", "false");
-                    updateTrackingButtonUI();
-                }
-            }
-            localStorage.setItem("HIDDEN_PERSONNEL_LIST", JSON.stringify(hiddenIndividuals));
-            renderIndividualPrivacyList();
-            if (isTrackingVisible) {
-                loadPersonnelLocations();
-            }
-        }
-
-        function renderIndividualPrivacyList() {
-            const container = document.getElementById("individualPrivacyList");
-            if (!container) return;
-            container.innerHTML = "";
-
-            Object.values(PERSONNEL_ROSTER).forEach(name => {
-                const hidden = isPersonHidden(name);
-                const div = document.createElement("div");
-                div.className = `p-2.5 rounded-xl border flex items-center justify-between transition ${hidden ? 'bg-slate-950/90 border-red-500/30' : 'bg-slate-800/80 border-emerald-500/30'}`;
-                div.innerHTML = `
-                    <div class="flex items-center gap-2">
-                        <span class="w-2.5 h-2.5 rounded-full ${hidden ? 'bg-red-500' : 'bg-emerald-400 animate-pulse'}"></span>
-                        <div>
-                            <div class="text-xs font-bold text-white">${name}</div>
-                            <div class="text-[10px] ${hidden ? 'text-red-400' : 'text-emerald-400'}">${hidden ? 'ซ่อนหมุด (ส่วนตัว/ออกเวร)' : 'อนุญาตแสดงพิกัด'}</div>
+        // ============================================================================
+        // 4.1 สร้างหน้าปัดเข็มทิศยุทธวิธีและทิศทางลม (แสดงบนแผนที่ 100% ด้วย Leaflet Control)
+        // ============================================================================
+        function createFloatingCompassWidget() {
+            if (!map) return;
+            const CompassControl = L.Control.extend({
+                options: { position: 'topleft' },
+                onAdd: function() {
+                    const div = L.DomUtil.create('div', 'leaflet-bar');
+                    div.style.cssText = "background: rgba(15, 23, 42, 0.92); border: 1px solid #334155; border-radius: 14px; padding: 8px 12px; display: flex; align-items: center; gap: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.6); backdrop-filter: blur(8px); color: #f8fafc; pointer-events: auto;";
+                    div.innerHTML = `
+                        <div style="position: relative; width: 58px; height: 58px; border-radius: 50%; background: #020617; border: 2px solid #475569; display: flex; align-items: center; justify-content: center;">
+                            <span style="position: absolute; top: 1px; font-size: 10px; font-weight: 800; color: #ef4444;">N</span>
+                            <span style="position: absolute; bottom: 1px; font-size: 9px; font-weight: 700; color: #94a3b8;">S</span>
+                            <span style="position: absolute; right: 3px; font-size: 9px; font-weight: 700; color: #94a3b8;">E</span>
+                            <span style="position: absolute; left: 3px; font-size: 9px; font-weight: 700; color: #94a3b8;">W</span>
+                            <div style="width: 38px; height: 38px; border-radius: 50%; border: 1px dashed #334155;"></div>
+                            <div id="compassWindNeedle" style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; transition: transform 0.6s ease;" title="ทิศทางลมพัดไป (ทิศไฟลาม)">
+                                <i class="fa-solid fa-location-arrow" style="color: #38bdf8; font-size: 16px; transform: rotate(-45deg); filter: drop-shadow(0 0 5px rgba(56,189,248,0.9));"></i>
+                            </div>
+                            <div style="width: 6px; height: 6px; border-radius: 50%; background: #fbbf24; z-index: 2;"></div>
                         </div>
-                    </div>
-                    <button onclick="toggleIndividualPrivacy('${name}')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${hidden ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-red-600/30 hover:bg-red-600/50 text-red-200 border border-red-500/40'}">
-                        ${hidden ? 'เปิดแสดง' : 'กดซ่อน'}
-                    </button>
-                `;
-                container.appendChild(div);
+                        <div style="font-size: 11px; line-height: 1.35;">
+                            <div style="font-weight: 700; color: #ffffff; display: flex; align-items: center; gap: 4px;">
+                                <i class="fa-regular fa-compass" style="color: #fbbf24;"></i> เข็มทิศ & ทิศไฟลาม
+                            </div>
+                            <div style="color: #cbd5e1;">ทิศเหนือ: <b style="color: #f87171;">ด้านบน (0°)</b></div>
+                            <div style="color: #cbd5e1;">ลมพัดไป: <b id="compassBlowToText" style="color: #38bdf8;">กำลังโหลด...</b></div>
+                            <div id="compassWindSpeedText" style="font-size: 10px; color: #34d399; font-weight: 600;">ความเร็วลม: -- กม./ชม.</div>
+                        </div>
+                    `;
+                    L.DomEvent.disableClickPropagation(div);
+                    return div;
+                }
             });
+            map.addControl(new CompassControl());
         }
 
-        // ฟังก์ชันสำหรับกดปุ่ม สลับสถานะ เข้าเวร (แสดงหมุด) / ออกเวร (ซ่อนหมุดทันที)
-        function togglePersonnelTracking() {
-            isTrackingVisible = !isTrackingVisible;
-            localStorage.setItem("HIDE_PERSONNEL_PIN", !isTrackingVisible);
-            updateTrackingButtonUI();
+        function updateCompassWidget(windFromDeg, windSpeed) {
+            const blowToDeg = (windFromDeg + 180) % 360;
+            const needle = document.getElementById("compassWindNeedle");
+            const dirText = document.getElementById("compassBlowToText");
+            const spdText = document.getElementById("compassWindSpeedText");
 
-            if (!isTrackingVisible) {
-                if (typeof layerPersonnel !== "undefined" && layerPersonnel) {
-                    layerPersonnel.clearLayers();
-                }
-                if (typeof personnelMarkers !== "undefined" && personnelMarkers) {
-                    Object.keys(personnelMarkers).forEach(k => {
-                        if (map && personnelMarkers[k]) map.removeLayer(personnelMarkers[k]);
+            if (needle) needle.style.transform = `rotate(${blowToDeg}deg)`;
+            if (dirText) dirText.innerText = `${degreeToThaiCompass(blowToDeg)} (${Math.round(blowToDeg)}°)`;
+            if (spdText) spdText.innerText = `ความเร็วลม: ${windSpeed} กม./ชม.`;
+        }
+
+        // ============================================================================
+        // 4.2 สร้างแถบปุ่มเลือกชื่อ อส. และกดสลับ 🟢 เข้าเวร / 🔴 ออกเวร (ซิงค์ทุกเครื่อง 100%)
+        // ============================================================================
+        function createPersonnelDutyBarUI() {
+            if (!map) return;
+            const DutyControl = L.Control.extend({
+                options: { position: 'bottomleft' },
+                onAdd: function() {
+                    const container = L.DomUtil.create('div', 'leaflet-bar');
+                    container.style.cssText = "background: rgba(15, 23, 42, 0.95); border: 1px solid #475569; border-radius: 12px; padding: 8px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); backdrop-filter: blur(8px); pointer-events: auto; margin-bottom: 6px;";
+
+                    let optionsHtml = "";
+                    Object.values(PERSONNEL_ROSTER).forEach(name => {
+                        const sel = (name === mySelectedIdentity) ? "selected" : "";
+                        optionsHtml += `<option value="${name}" ${sel}>${name}</option>`;
                     });
-                    personnelMarkers = {};
+
+                    container.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #e2e8f0;">
+                            <i class="fa-solid fa-user-shield" style="color: #38bdf8;"></i>
+                            <span style="font-weight: 600;">ชื่อ อส.:</span>
+                            <select id="selectMyIdentity" onchange="onChangeMyIdentity(this.value)" style="background: #020617; color: #fbbf24; font-weight: 700; border: 1px solid #475569; border-radius: 8px; padding: 4px 8px; font-size: 12px; outline: none; cursor: pointer;">
+                                ${optionsHtml}
+                            </select>
+                        </div>
+                        <button id="btnToggleMyDuty" onclick="toggleMyDutyStatus()" style="padding: 7px 14px; border: 2px solid #ffffff; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; transition: 0.2s; color: #ffffff; background-color: #16a34a;">
+                            🟢 สถานะ: กำลังเข้าเวร (คลิกเพื่อซ่อนหมุด/ออกเวร)
+                        </button>
+                    `;
+                    L.DomEvent.disableClickPropagation(container);
+                    return container;
                 }
-                if (personnelMarker && map) {
-                    map.removeLayer(personnelMarker);
-                    personnelMarker = null;
-                }
-                const statusEl = document.getElementById("personnelStatusText");
-                if (statusEl) {
-                    statusEl.innerHTML = `• ปิดการแสดงหมุดกำลังพลชั่วคราว (โหมดส่วนตัว)`;
-                }
+            });
+            map.addControl(new DutyControl());
+            updateDutyButtonAppearance();
+        }
+
+        function onChangeMyIdentity(newName) {
+            mySelectedIdentity = newName;
+            localStorage.setItem("MY_OS_IDENTITY", newName);
+            updateDutyButtonAppearance();
+        }
+
+        function updateDutyButtonAppearance() {
+            const btn = document.getElementById("btnToggleMyDuty");
+            if (!btn) return;
+            const isHidden = serverHiddenMap[mySelectedIdentity] === true;
+            if (!isHidden) {
+                btn.innerHTML = `🟢 ${mySelectedIdentity}: กำลังเข้าเวร (คลิกเพื่อซ่อนหมุด/ออกเวร)`;
+                btn.style.backgroundColor = "#16a34a"; // สีเขียว
             } else {
-                loadPersonnelLocations();
+                btn.innerHTML = `🔴 ${mySelectedIdentity}: ออกเวร / ซ่อนหมุดแล้ว (คลิกเมื่อเริ่มเข้าเวร)`;
+                btn.style.backgroundColor = "#dc2626"; // สีแดง
             }
         }
 
-        function updateTrackingButtonUI() {
-            let btn = document.getElementById("btnToggleTracking");
-            if (!btn) {
-                btn = document.createElement("button");
-                btn.id = "btnToggleTracking";
-                btn.onclick = togglePersonnelTracking;
-                btn.style.cssText = "position: fixed; bottom: 20px; left: 20px; z-index: 9999; padding: 10px 16px; border: 2px solid #ffffff; border-radius: 10px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-family: inherit; transition: 0.2s;";
-                document.body.appendChild(btn);
+        // เมื่อน้อง อส. กดปุ่ม สีเขียว/สีแดง จะส่งคำสั่งไปล็อกที่ Google Apps Script ทันที
+        async function toggleMyDutyStatus(targetPersonName) {
+            const person = targetPersonName || mySelectedIdentity;
+            const currentlyHidden = serverHiddenMap[person] === true;
+            const nextHideState = !currentlyHidden;
+
+            // อัปเดตสถานะบนหน้าจอทันทีและลบหมุดออกจากแผนที่ทันทีถ้ากดซ่อน
+            serverHiddenMap[person] = nextHideState;
+            localStorage.setItem("SERVER_HIDDEN_MAP", JSON.stringify(serverHiddenMap));
+            updateDutyButtonAppearance();
+
+            if (nextHideState && personnelMarkers[person]) {
+                layerPersonnel.removeLayer(personnelMarkers[person]);
+                if (map) map.removeLayer(personnelMarkers[person]);
+                delete personnelMarkers[person];
             }
-            if (isTrackingVisible) {
-                btn.innerHTML = "🟢 สถานะ อส.: กำลังเข้าเวร (คลิกเพื่อซ่อนหมุด/ออกเวร)";
-                btn.style.backgroundColor = "#16a34a";
-                btn.style.color = "#ffffff";
-            } else {
-                btn.innerHTML = "🔴 สถานะ อส.: ออกเวร / ซ่อนหมุดแล้ว (คลิกเมื่อเริ่มเข้าเวร)";
-                btn.style.backgroundColor = "#dc2626";
-                btn.style.color = "#ffffff";
+
+            // ส่งคำสั่งไปบันทึกที่ Google Apps Script เพื่อให้หน้าจอของทุกคนซ่อนหมุดตรงกัน 100%
+            try {
+                const url = `${GAS_WEBAPP_URL}?action=set_privacy&person=${encodeURIComponent(person)}&hide=${nextHideState}&t=${Date.now()}`;
+                const res = await fetch(url, { redirect: "follow" });
+                const data = await res.json();
+                if (data && data.hidden_map) {
+                    serverHiddenMap = data.hidden_map;
+                    localStorage.setItem("SERVER_HIDDEN_MAP", JSON.stringify(serverHiddenMap));
+                    updateDutyButtonAppearance();
+                }
+                loadPersonnelLocations();
+            } catch (err) {
+                console.warn("ซิงค์สถานะเข้าเวร/ออกเวร:", err);
+                loadPersonnelLocations();
             }
         }
 
@@ -1073,6 +1081,7 @@
             layerStrategic.addTo(map);
             layerWind.addTo(map);
             layerLiveGistda.addTo(map);
+            layerGistdaLive.addTo(map);
             layerPersonnel.addTo(map);
 
             map.on('click', function(e) {
@@ -1104,7 +1113,9 @@
         function updatePersonnelMarkerOnMap(lat, lng, rawName, timeStr, batt, status, rawTid) {
             if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
             const name = normalizePersonnelId(rawName, rawTid);
-            if (!isTrackingVisible || isPersonHidden(name)) return;
+
+            // ถ้าคนนี้กดสถานะสีแดง (ออกเวร/ซ่อนหมุด) ไม่ต้องวาดหมุดลงแผนที่เด็ดขาด
+            if (serverHiddenMap[name] === true) return;
 
             currentPersonnelLatLng = [lat, lng];
 
@@ -1125,18 +1136,18 @@
             });
 
             const popupHtml = `
-                <div class="p-1.5 min-w-[220px] space-y-1.5 text-xs">
+                <div class="p-1.5 min-w-[215px] space-y-1.5 text-xs">
                     <div class="flex items-center justify-between">
                         <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold text-[10px]">OwnTracks Live</span>
                         <span class="text-[11px] text-emerald-400 font-semibold"><i class="fa-solid fa-battery-three-quarters mr-1"></i>${batt || '--'}%</span>
                     </div>
                     <div class="text-sm font-bold text-white pt-0.5">${name}</div>
-                    <div class="text-xs text-slate-300"><b>สถานะ:</b> ${status || 'กำลังปฏิบัติงาน'}</div>
+                    <div class="text-xs text-slate-300"><b>สถานะ:</b> ${status || 'กำลังเข้าเวร'}</div>
                     <div class="text-[11px] text-slate-400"><b>พิกัด:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
                     <div class="text-[11px] text-slate-400"><b>อัปเดต:</b> ${timeStr || 'ล่าสุด'}</div>
-                    <div class="pt-1.5 border-t border-slate-700 flex gap-1.5">
-                        <button onclick="toggleIndividualPrivacy('${name}')" class="w-full py-1.5 px-2 rounded-lg bg-red-600/30 hover:bg-red-600/50 border border-red-500/40 text-red-200 font-semibold text-[11px] transition">
-                            🔴 ซ่อนหมุดของฉัน (ออกเวร/ส่วนตัว)
+                    <div class="pt-1 border-t border-slate-700">
+                        <button onclick="toggleMyDutyStatus('${name}')" class="w-full py-1.5 px-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] transition">
+                            🔴 กดซ่อนหมุด / ออกเวร (${name})
                         </button>
                     </div>
                 </div>
@@ -1157,36 +1168,29 @@
         }
 
         async function loadPersonnelLocations() {
-            if (!isTrackingVisible) return;      
-            const defaultUrl = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy2lG8ofA8kMAivMMWW1BPoczPTs0Q/exec";
-            const urlToFetch = (typeof GAS_WEBAPP_URL !== 'undefined' && GAS_WEBAPP_URL && GAS_WEBAPP_URL.startsWith("http")) ? GAS_WEBAPP_URL : defaultUrl;
-
             try {
-                const res = await fetch(urlToFetch + "?t=" + Date.now(), { redirect: "follow" });
+                const res = await fetch(GAS_WEBAPP_URL + "?t=" + Date.now(), { redirect: "follow" });
                 const data = await res.json();
-                const records = Array.isArray(data) ? data : (data.records || data.data || [data]);
 
+                if (data && data.hidden_map) {
+                    serverHiddenMap = data.hidden_map;
+                    localStorage.setItem("SERVER_HIDDEN_MAP", JSON.stringify(serverHiddenMap));
+                    updateDutyButtonAppearance();
+                }
+
+                const records = Array.isArray(data) ? data : (data.records || data.data || []);
                 const latestByPerson = {};
+
                 records.forEach(row => {
                     if (!row) return;
-                    
-                    let lat, lng, rawName, rawTid, batt, time, status;
-                    if (Array.isArray(row)) {
-                        time = row[0] || "";
-                        rawName = row[1] || "11-Bel";
-                        lat = parseFloat(row[2]);
-                        lng = parseFloat(row[3]);
-                        batt = row[4] !== undefined ? row[4] : "--";
-                        status = row[5] || "ปฏิบัติงาน (OwnTracks)";
-                    } else {
-                        lat = parseFloat(row.lat ?? row.Lat ?? row.latitude ?? row.Latitude);
-                        lng = parseFloat(row.lng ?? row.lon ?? row.Lng ?? row.Lon ?? row.longitude ?? row.Longitude);
-                        rawName = row.name || row.Name || row.user || row.User || row.device || row.DeviceID || row.topic || "";
-                        rawTid = row.tid || row.TrackerID || row.trackerId || "";
-                        batt = row.battery ?? row.batt ?? row.Battery ?? row.Batt ?? "--";
-                        time = row.tst ?? row.time ?? row.timestamp ?? row.Timestamp ?? row.UpdatedAt ?? row.created_at ?? row.date ?? row["วันที่"] ?? row["เวลา"] ?? "";
-                        status = row.status || row.Status || row.event || row._type || "ปฏิบัติงาน (OwnTracks)";
-                    }
+                    let lat = parseFloat(row.lat ?? row.Lat ?? row.latitude);
+                    let lng = parseFloat(row.lng ?? row.lon ?? row.Lng ?? row.longitude);
+                    let rawName = row.name || row.Name || row.user || "";
+                    let rawTid = row.tid || "";
+                    let batt = row.battery ?? row.batt ?? "--";
+                    let time = row.time || "ล่าสุด";
+                    let status = row.status || "ปฏิบัติงาน (OwnTracks)";
+                    let hiddenFlag = row.hidden === true;
 
                     if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
                         const standardName = normalizePersonnelId(rawName, rawTid);
@@ -1196,73 +1200,26 @@
                             name: standardName,
                             batt: batt,
                             time: time,
-                            status: status
+                            status: status,
+                            hidden: hiddenFlag || (serverHiddenMap[standardName] === true)
                         };
                     }
                 });
 
-                const allPersonList = Object.values(latestByPerson);
+                // ลบหมุดของคนที่กดซ่อนหมุด (ออกเวร) หรือไม่อยู่ในรายการ Active ออกจากแผนที่ทุกเครื่องทันที
+                Object.keys(personnelMarkers).forEach(existingName => {
+                    if (!latestByPerson[existingName] || latestByPerson[existingName].hidden || serverHiddenMap[existingName] === true) {
+                        layerPersonnel.removeLayer(personnelMarkers[existingName]);
+                        if (map) map.removeLayer(personnelMarkers[existingName]);
+                        delete personnelMarkers[existingName];
+                    }
+                });
+
                 const activeList = [];
-                const nowMs = Date.now();
-                const TIMEOUT_MINUTES = 15; // ตัดหมุดคนที่หยุดส่งพิกัดเกิน 15 นาทีอัตโนมัติ
-
-                allPersonList.forEach(p => {
-                    let isOffline = false;
-                    let displayTimeStr = "ล่าสุด";
-
-                    // 1. ตรวจสอบหากเจ้าตัวกดซ่อนหมุดรายบุคคลไว้
-                    if (isPersonHidden(p.name)) {
-                        isOffline = true;
-                    }
-
-                    // 2. ตรวจสอบเวลาอัปเดตล่าสุด (รองรับทั้ง tst ของ OwnTracks และวันที่ของ Sheets)
-                    if (!isOffline && p.time !== undefined && p.time !== null && String(p.time).trim() !== "" && p.time !== "ล่าสุด" && p.time !== "--") {
-                        let parsedTime = NaN;
-                        const rawTime = p.time;
-
-                        if (typeof rawTime === "number" || /^\d+$/.test(String(rawTime).trim())) {
-                            parsedTime = Number(rawTime);
-                            if (parsedTime < 10000000000) parsedTime *= 1000;
-                        } else if (typeof rawTime === "string") {
-                            parsedTime = new Date(rawTime).getTime();
-                            if (isNaN(parsedTime)) {
-                                const m = rawTime.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+|,\s*|\s*เวลา\s*)(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
-                                if (m) {
-                                    let year = parseInt(m[3], 10);
-                                    if (year > 2400) year -= 543;
-                                    parsedTime = new Date(year, parseInt(m[2], 10) - 1, parseInt(m[1], 10), parseInt(m[4], 10), parseInt(m[5], 10), parseInt(m[6] || 0, 10)).getTime();
-                                }
-                            }
-                        }
-
-                        if (!isNaN(parsedTime) && parsedTime > 0) {
-                            const diffMin = (nowMs - parsedTime) / (1000 * 60);
-                            const dt = new Date(parsedTime);
-                            displayTimeStr = dt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ` น. (${Math.max(0, Math.round(diffMin))} นาทีที่แล้ว)`;
-                            
-                            if (diffMin > TIMEOUT_MINUTES) {
-                                isOffline = true;
-                            }
-                        }
-                    }
-
-                    // 3. เช็กคำสั่งสถานะ ออกเวร / Offline / Quiet / ปิด
-                    const statusStr = String(p.status || "").toLowerCase();
-                    if (statusStr.includes("ออกเวร") || statusStr.includes("offline") || statusStr.includes("pause") || statusStr.includes("quiet") || statusStr.includes("ปิด")) {
-                        isOffline = true;
-                    }
-
-                    if (isOffline) {
-                        if (typeof personnelMarkers !== "undefined" && personnelMarkers[p.name]) {
-                            if (typeof layerPersonnel !== "undefined" && layerPersonnel) {
-                                layerPersonnel.removeLayer(personnelMarkers[p.name]);
-                            }
-                            if (map) map.removeLayer(personnelMarkers[p.name]);
-                            delete personnelMarkers[p.name];
-                        }
-                    } else {
+                Object.values(latestByPerson).forEach(p => {
+                    if (!p.hidden && serverHiddenMap[p.name] !== true) {
                         activeList.push(p);
-                        updatePersonnelMarkerOnMap(p.lat, p.lng, p.name, displayTimeStr, p.batt, p.status);
+                        updatePersonnelMarkerOnMap(p.lat, p.lng, p.name, p.time, p.batt, p.status);
                     }
                 });
 
@@ -1270,19 +1227,15 @@
                 if (activeList.length > 0) {
                     if (statusEl) {
                         const latestPerson = activeList[activeList.length - 1];
-                        statusEl.innerHTML = `• ออนไลน์ ${activeList.length} นาย (${latestPerson.name}: แบต ${latestPerson.batt}%)`;
+                        statusEl.innerHTML = `• กำลังเข้าเวร ${activeList.length} นาย (${latestPerson.name}: แบต ${latestPerson.batt}%)`;
                     }
                 } else {
                     if (statusEl) {
-                        statusEl.innerHTML = `• ไม่มีเจ้าหน้าที่เปิดแชร์พิกัด (ซ่อนหมุด/ออกเวร)`;
+                        statusEl.innerHTML = `• ไม่มีเจ้าหน้าที่เปิดแสดงพิกัด (ออกเวร/ซ่อนหมุดทั้งหมด)`;
                     }
                 }
             } catch (err) {
                 console.warn("OwnTracks fetch warning:", err);
-                const statusEl = document.getElementById("personnelStatusText");
-                if (statusEl) {
-                    statusEl.innerHTML = `• รอซิงค์พิกัดเจ้าหน้าที่ (ออฟไลน์)`;
-                }
             }
         }
 
@@ -1300,8 +1253,6 @@
                 const singlePos = markersList[0].getLatLng();
                 map.flyTo(singlePos, 16, { duration: 1.0 });
                 setTimeout(() => markersList[0].openPopup(), 1000);
-            } else {
-                openModal('privacyModal');
             }
         }
 
@@ -1327,9 +1278,7 @@
             toggleLayer(layerHotspots, document.getElementById('chkHotspots').checked);
             toggleLayer(layerWind, document.getElementById('chkWind').checked);
             toggleLayer(layerLiveGistda, document.getElementById('chkLiveGistda').checked);
-            if (typeof layerGistdaLive !== "undefined") {
-                toggleLayer(layerGistdaLive, document.getElementById('chkLiveGistda').checked);
-            }
+            toggleLayer(layerGistdaLive, document.getElementById('chkLiveGistda').checked);
         }
 
         function toggleLayer(layer, show) {
@@ -1583,22 +1532,11 @@
         }
 
         // ============================================================================
-        // 8. ดึงข้อมูลทิศทางลมและสภาพอากาศจริง + อัปเดตหน้าปัดเข็มทิศ
+        // 8. ดึงข้อมูลทิศทางลมและสภาพอากาศจริง + อัปเดตเข็มทิศ
         // ============================================================================
         function degreeToThaiCompass(deg) {
             const dirs = ["เหนือ (N)", "ตะวันออกเฉียงเหนือ (NE)", "ตะวันออก (E)", "ตะวันออกเฉียงใต้ (SE)", "ใต้ (S)", "ตะวันตกเฉียงใต้ (SW)", "ตะวันตก (W)", "ตะวันตกเฉียงเหนือ (NW)"];
             return dirs[Math.round(deg / 45) % 8];
-        }
-
-        function updateCompassWidget(windFromDeg, windSpeed) {
-            const blowToDeg = (windFromDeg + 180) % 360;
-            const needle = document.getElementById("compassWindNeedle");
-            const dirText = document.getElementById("compassBlowToText");
-            const spdText = document.getElementById("compassWindSpeedText");
-
-            if (needle) needle.style.transform = `rotate(${blowToDeg}deg)`;
-            if (dirText) dirText.innerText = `${degreeToThaiCompass(blowToDeg)} (${ Math.round(blowToDeg) }°)`;
-            if (spdText) spdText.innerText = `ความเร็วลม: ${windSpeed} กม./ชม.`;
         }
 
         async function fetchAllWeather() {
@@ -1620,7 +1558,6 @@
                         ws.dir = (c.wind_direction_10m + (idx * 5 - 5) + 360) % 360;
                     });
 
-                    // อัปเดตเข็มทิศบนแผนที่
                     updateCompassWidget(c.wind_direction_10m, c.wind_speed_10m);
                 }
 
@@ -1878,8 +1815,7 @@
             } catch (err) {
                 statusBox.innerHTML = `
                     <div class="text-amber-300 space-y-1">
-                        <div><i class="fa-solid fa-triangle-exclamation mr-1"></i>เบราว์เซอร์อาจถูกบล็อกด้วยระบบความปลอดภัย CORS ของเซิร์ฟเวอร์ GISTDA เมื่อเรียกจากหน้าเว็บโดยตรง (${err.message})</div>
-                        <div class="text-slate-400">คำแนะนำ: ระบบกำลังซิงค์ข้อมูลจุดความร้อนผ่านไฟล์ <code>sansai_live_status.json</code> ที่ GitHub Actions อัปเดตทุก 15 นาทีโดยอัตโนมัติครับ</div>
+                        <div><i class="fa-solid fa-triangle-exclamation mr-1"></i>ระบบกำลังซิงค์ข้อมูลจุดความร้อนผ่านไฟล์ <code>sansai_live_status.json</code> ที่ GitHub Actions อัปเดตทุก 15 นาทีโดยอัตโนมัติครับ</div>
                     </div>
                 `;
             }
@@ -1964,12 +1900,14 @@
 
         function openModal(id) {
             const el = document.getElementById(id);
+            if (!el) return;
             el.classList.remove('hidden');
             el.classList.add('flex');
         }
 
         function closeModal(id) {
             const el = document.getElementById(id);
+            if (!el) return;
             el.classList.add('hidden');
             el.classList.remove('flex');
         }
@@ -1984,11 +1922,9 @@
             document.body.removeChild(textarea);
         }
 
-        // ==========================================
+        // ============================================================================
         // 13. ระบบดึงจุดความร้อน GISTDA (เฉพาะ อ.สันทราย) และแสดงหมุดรูปไฟ 🔥
-        // ==========================================
-        const layerGistdaLive = L.layerGroup();
-
+        // ============================================================================
         function isSansaiHotspot(item) {
             const props = item.properties || item;
             const amphoe = String(props.ap_tn || props.amphoe || props.amphoe_t || props.district || "").trim();
@@ -2086,39 +2022,18 @@
                     foundSpots = list.filter(isSansaiHotspot);
                 }
             } catch (e) {
-                console.debug("ยังไม่มีข้อมูลจุดความร้อนใน sansai_live_status.json");
-            }
-
-            const apiKey = localStorage.getItem("SANSAI_GISTDA_KEY") || "";
-            if (apiKey && foundSpots.length === 0) {
-                try {
-                    const gistdaUrl = "https://api-gateway.gistda.or.th/api/2.0/resources/features/viirs/1day";
-                    const res = await fetch(gistdaUrl, {
-                        headers: { "API-Key": apiKey, "Accept": "application/json" }
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        const features = data.features || data.data || (Array.isArray(data) ? data : []);
-                        foundSpots = features.filter(isSansaiHotspot);
-                    }
-                } catch (err) {
-                    console.warn("ดึง GISTDA API โดยตรงไม่สำเร็จ:", err);
-                }
+                console.debug("กำลังซิงค์ไฟล์ sansai_live_status.json");
             }
 
             if (foundSpots.length > 0) {
                 renderGistdaFireMarkers(foundSpots);
-                console.log(`🔥 พบจุดความร้อน GISTDA ใน อ.สันทราย จำนวน ${foundSpots.length} จุด`);
             }
         }
 
         setTimeout(() => {
-            if (map && !map.hasLayer(layerGistdaLive)) {
-                layerGistdaLive.addTo(map);
-            }
             fetchRealTimeSansaiHotspots();
             setInterval(fetchRealTimeSansaiHotspots, 300000);
         }, 1500);
     </script>
 </body>
-</html>
+</html>  
