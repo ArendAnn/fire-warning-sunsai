@@ -1077,90 +1077,44 @@ if (!isTrackingVisible) return;
             }
         }
 
-       async function loadPersonnelLocations() {
-     if (!isTrackingVisible) return;      
-            const defaultUrl = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy2lG8ofA8kMAivMMWW1BPoczPTs0Q/exec";
-            const urlToFetch = (typeof GAS_WEBAPP_URL !== 'undefined' && GAS_WEBAPP_URL && GAS_WEBAPP_URL.startsWith("http")) ? GAS_WEBAPP_URL : defaultUrl;
-
-            try {
-                const res = await fetch(urlToFetch, { redirect: "follow" });
-                const data = await res.json();
-                const records = Array.isArray(data) ? data : (data.records || data.data || [data]);
-
-                const latestByPerson = {};
-                records.forEach(row => {
-                    if (!row) return;
-                    
-                    let lat, lng, rawName, rawTid, batt, time, status;
-                    if (Array.isArray(row)) {
-                        time = row[0] || "ล่าสุด";
-                        rawName = row[1] || "11-Bel";
-                        lat = parseFloat(row[2]);
-                        lng = parseFloat(row[3]);
-                        batt = row[4] !== undefined ? row[4] : "--";
-                        status = row[5] || "ปฏิบัติงาน (OwnTracks)";
-                    } else {
-                        lat = parseFloat(row.lat ?? row.Lat ?? row.latitude ?? row.Latitude);
-                        lng = parseFloat(row.lng ?? row.lon ?? row.Lng ?? row.Lon ?? row.longitude ?? row.Longitude);
-                        rawName = row.name || row.Name || row.user || row.User || row.device || row.DeviceID || row.topic || "";
-                        rawTid = row.tid || row.TrackerID || row.trackerId || "";
-                        batt = row.battery ?? row.batt ?? row.Battery ?? row.Batt ?? "--";
-                        time = row.time || row.timestamp || row.Timestamp || row.UpdatedAt || "ล่าสุด";
-                        status = row.status || row.Status || "ปฏิบัติงาน (OwnTracks)";
-                    }
-
-                    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-                        const standardName = normalizePersonnelId(rawName, rawTid);
-                        latestByPerson[standardName] = {
-                            lat: lat,
-                            lng: lng,
-                            name: standardName,
-                            batt: batt,
-                            time: time,
-                            status: status
-                        };
-                    }
-                });
-
 const allPersonList = Object.values(latestByPerson);
                 const activeList = [];
                 const nowMs = new Date().getTime();
-                const TIMEOUT_MINUTES = 15; // ตั้งเวลาตัดหมุดอัตโนมัติที่ 15 นาที
+                const TIMEOUT_MINUTES = 15; // หากปิดการแชร์พิกัดหรือไม่มีสัญญาณเกิน 15 นาที ให้ซ่อนหมุดอัตโนมัติ
 
                 allPersonList.forEach(p => {
                     let isOffline = false;
 
-                    // ตรวจสอบเวลาอัปเดตล่าสุดของแต่ละคน (รองรับทั้งรูปแบบเวลาสากล, Timestamp และ วัน/เดือน/ปี)
+                    // 1. ตรวจสอบสถานะที่น้องๆ ตั้งค่าในแอป OwnTracks โดยตรง (เช่น ตั้งสถานะเป็น Quiet, Offline, ออกเวร, หรือซ่อน)
+                    if (p.status) {
+                        const st = String(p.status).toLowerCase();
+                        if (st.includes("quiet") || st.includes("offline") || st.includes("ออกเวร") || st.includes("hide") || st.includes("stop")) {
+                            isOffline = true;
+                        }
+                    }
+
+                    // 2. ตรวจสอบเวลาอัปเดตล่าสุด (ถ้าปิดแอปหรือหยุดแชร์พิกัดเกิน 15 นาที ให้ซ่อนหมุด)
                     if (p.time && p.time !== "ล่าสุด" && p.time !== "--") {
                         let parsedTime = new Date(p.time).getTime();
-                        
-                        // กรณีรูปแบบวันที่เป็น วัน/เดือน/ปี (DD/MM/YYYY)
                         if (isNaN(parsedTime) && typeof p.time === "string") {
                             const m = p.time.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
                             if (m) {
                                 let year = parseInt(m[3], 10);
-                                if (year > 2400) year -= 543; // แปลง พ.ศ. เป็น ค.ศ.
+                                if (year > 2400) year -= 543;
                                 parsedTime = new Date(year, parseInt(m[2], 10) - 1, parseInt(m[1], 10), parseInt(m[4], 10), parseInt(m[5], 10), parseInt(m[6] || 0, 10)).getTime();
                             }
                         }
-
                         if (!isNaN(parsedTime)) {
-                            // ถ้าเป็น Unix Timestamp หน่วยวินาที (10 หลัก) ให้แปลงเป็นมิลลิวินาที
                             if (parsedTime < 10000000000) parsedTime *= 1000;
                             const diffMin = (nowMs - parsedTime) / (1000 * 60);
-                            if (diffMin > TIMEOUT_MINUTES) {
+                            if (diffMin > TIMEOUT_MINUTES && diffMin < 500000) {
                                 isOffline = true;
                             }
                         }
                     }
 
-                    // เช็คเพิ่มเติม: ถ้าน้องตั้งสถานะว่า ออกเวร หรือ Offline
-                    if (p.status && (String(p.status).includes("ออกเวร") || String(p.status).toLowerCase().includes("offline"))) {
-                        isOffline = true;
-                    }
-
-if (isOffline) {
-                        // ลบเฉพาะหมุดของคนที่ออกเวร/ปิดแอปเกิน 15 นาที ออกจากแผนที่ทันที
+                    if (isOffline) {
+                        // หากปิดการแชร์ -> ลบหมุดของคนนั้นออกจากแผนที่ทันทีเพื่อรักษาความเป็นส่วนตัว
                         if (typeof personnelMarkers !== "undefined" && personnelMarkers[p.name]) {
                             if (typeof layerPersonnel !== "undefined" && layerPersonnel) {
                                 layerPersonnel.removeLayer(personnelMarkers[p.name]);
@@ -1169,30 +1123,24 @@ if (isOffline) {
                             delete personnelMarkers[p.name];
                         }
                     } else {
-                        // คนที่ยังเข้าเวรปกติ ให้แสดงหมุดต่อไป
+                        // เฉพาะคนที่เปิดแชร์พิกัดและออนไลน์อยู่เท่านั้น ถึงจะแสดงหมุดบนแผนที่
                         activeList.push(p);
                         updatePersonnelMarkerOnMap(p.lat, p.lng, p.name, p.time, p.batt, p.status);
                     }
                 });
 
+                // อัปเดตข้อความแสดงรายชื่อผู้ที่ออนไลน์อยู่จริง
                 const statusEl = document.getElementById("personnelStatusText");
                 if (activeList.length > 0) {
                     if (statusEl) {
-                        const latestPerson = activeList[activeList.length - 1];
-                        statusEl.innerHTML = `• ออนไลน์ ${activeList.length} นาย (${latestPerson.name}: แบต ${latestPerson.batt}%)`;
+                        const activeNames = activeList.map(item => item.name).join(", ");
+                        statusEl.innerHTML = `• ออนไลน์ ${activeList.length} นาย (${activeNames})`;
                     }
                 } else {
                     if (statusEl) {
-                        statusEl.innerHTML = `• ไม่มีเจ้าหน้าที่กำลังเข้าเวร (ปิดการติดตาม/ออกเวรทั้งหมด)`;
+                        statusEl.innerHTML = `• ไม่มีเจ้าหน้าที่เปิดแชร์พิกัดในขณะนี้`;
                     }
                 }
-            } catch (err) {
-                console.warn("OwnTracks fetch warning:", err);
-                const statusEl = document.getElementById("personnelStatusText");
-                if (statusEl) {
-                    statusEl.innerHTML = `• รอซิงค์พิกัดเจ้าหน้าที่ (ออฟไลน์)`;
-                }
-            }
         }
 
         function zoomToPersonnel() {
