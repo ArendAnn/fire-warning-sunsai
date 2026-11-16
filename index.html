@@ -90,6 +90,9 @@
         .wind-arrow-icon {
             transition: transform 0.5s ease-out;
         }
+        .compass-Dial {
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col select-none">
@@ -103,7 +106,7 @@
             <div>
                 <div class="flex items-center gap-2">
                     <h1 class="text-base md:text-lg font-bold tracking-wide text-white">ศูนย์ปฏิบัติการเฝ้าระวังและควบคุมไฟป่า อำเภอสันทราย</h1>
-                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">ไฟป่า 2570 • v2.5</span>
+                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">ไฟป่า 2570 • v2.6</span>
                 </div>
                 <p class="text-xs text-slate-400">กองร้อยอาสารักษาดินแดนอำเภอสันทราย ที่ 15 • ระบบแผนที่ยุทธวิธี & ดาวเทียม NOAA (VIIRS)</p>
             </div>
@@ -144,7 +147,7 @@
             <!-- Python Script Guide Button -->
             <button onclick="openModal('scriptModal')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
                 <i class="fa-brands fa-github"></i>
-                <span class="hidden sm:inline">สคริปต์รันทุก 3 ชม.</span>
+                <span class="hidden sm:inline">สคริปต์รันอัตโนมัติ</span>
             </button>
         </div>
     </header>
@@ -224,8 +227,8 @@
                             <i class="fa-solid fa-eye text-emerald-400"></i> เปิด/ปิด ชั้นข้อมูลบนแผนที่
                         </h3>
 
-                        <!-- ชั้นข้อมูลพิกัดกำลังพล (อส. 11 นาย) -->
-                        <div class="p-2.5 rounded-lg bg-slate-900/80 border border-blue-500/40 space-y-1.5">
+                        <!-- ชั้นข้อมูลพิกัดกำลังพล (อส. 11 นาย) + ตั้งค่าความเป็นส่วนตัวรายบุคคล -->
+                        <div class="p-2.5 rounded-lg bg-slate-900/90 border border-blue-500/40 space-y-2">
                             <label class="flex items-center justify-between cursor-pointer">
                                 <div class="flex items-center gap-2.5">
                                     <input type="checkbox" id="chkPersonnel" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
@@ -237,6 +240,12 @@
                                 <span id="personnelStatusText" class="text-emerald-400 font-medium">• พร้อมแสดงพิกัดกำลังพล</span>
                                 <button type="button" onclick="zoomToPersonnel()" class="text-sky-400 hover:text-sky-300 underline flex items-center gap-1">
                                     <i class="fa-solid fa-location-crosshairs"></i> ซูมหาหมุด
+                                </button>
+                            </div>
+                            <!-- ปุ่มเปิดหน้าต่างจัดการความเป็นส่วนตัวรายบุคคล -->
+                            <div class="pl-6 pt-1 flex flex-wrap gap-1.5">
+                                <button type="button" onclick="openModal('privacyModal')" class="w-full py-1.5 px-2.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition">
+                                    <i class="fa-solid fa-user-lock"></i> ตั้งค่าความเป็นส่วนตัว / ซ่อนหมุดรายคน (ออกเวร)
                                 </button>
                             </div>
                         </div>
@@ -431,6 +440,47 @@
         <main class="flex-1 relative h-full">
             <div id="map" class="w-full h-full z-10"></div>
 
+            <!-- FLOATING TACTICAL COMPASS & WIND ROSE (TOP LEFT OF MAP) -->
+            <div class="absolute top-3 left-3 z-20 flex items-center gap-2.5 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-2xl p-2.5 shadow-2xl pointer-events-auto">
+                <!-- Compass Dial -->
+                <div class="relative w-16 h-16 rounded-full bg-slate-950 border-2 border-slate-700 flex items-center justify-center shadow-inner">
+                    <!-- Cardinal Directions -->
+                    <span class="absolute top-0.5 text-[10px] font-extrabold text-red-500">N</span>
+                    <span class="absolute bottom-0.5 text-[9px] font-bold text-slate-400">S</span>
+                    <span class="absolute right-1 text-[9px] font-bold text-slate-400">E</span>
+                    <span class="absolute left-1 text-[9px] font-bold text-slate-400">W</span>
+                    <!-- Sub-ticks ring -->
+                    <div class="w-11 h-11 rounded-full border border-dashed border-slate-800"></div>
+
+                    <!-- Fixed North Pointer (Red/White Classic Compass Needle) -->
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-35">
+                        <div class="w-1 h-9 flex flex-col">
+                            <div class="h-1/2 bg-red-500 rounded-t-full"></div>
+                            <div class="h-1/2 bg-slate-300 rounded-b-full"></div>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic Wind Spread Arrow (Rotates according to real-time wind blow-to direction) -->
+                    <div id="compassWindNeedle" class="compass-Dial absolute inset-0 flex items-center justify-center" style="transform: rotate(45deg);" title="เข็มทิศทางลมพัดไป (ทิศไฟลาม)">
+                        <div class="flex flex-col items-center -mt-1">
+                            <i class="fa-solid fa-location-arrow text-sky-400 text-base drop-shadow-[0_0_6px_rgba(56,189,248,0.8)]" style="transform: rotate(-45deg);"></i>
+                        </div>
+                    </div>
+                    <!-- Center Pin -->
+                    <div class="w-2 h-2 rounded-full bg-amber-400 border border-slate-950 z-10"></div>
+                </div>
+
+                <!-- Compass Info Text -->
+                <div class="pr-1 text-[11px] space-y-0.5">
+                    <div class="font-bold text-white flex items-center gap-1">
+                        <i class="fa-regular fa-compass text-amber-400"></i> เข็มทิศ & ทิศไฟลาม
+                    </div>
+                    <div class="text-slate-300">ทิศเหนือ: <b class="text-red-400">ด้านบน (0°)</b></div>
+                    <div class="text-slate-300">ลมพัดไป: <b id="compassBlowToText" class="text-sky-400">ตะวันออกเฉียงเหนือ</b></div>
+                    <div class="text-[10px] text-emerald-400 font-semibold" id="compassWindSpeedText">ความเร็วลม: -- กม./ชม.</div>
+                </div>
+            </div>
+
             <!-- Floating Map Legend (Bottom Right) -->
             <div class="absolute bottom-5 right-4 z-20 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 shadow-xl max-w-xs text-[11px] space-y-1.5">
                 <div class="font-bold text-slate-200 flex items-center justify-between mb-1">
@@ -501,7 +551,7 @@
         </div>
     </div>
 
-    <!-- MODAL 2: PYTHON & GITHUB ACTIONS 3-HOUR SCRIPT -->
+    <!-- MODAL 2: PYTHON & GITHUB ACTIONS SCRIPT -->
     <div id="scriptModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-3xl w-full p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -510,7 +560,7 @@
                         <i class="fa-brands fa-python text-lg"></i>
                     </div>
                     <div>
-                        <h3 class="text-sm font-bold text-white">สคริปต์อัตโนมัติรันทุก 3 ชั่วโมง บน GitHub Actions</h3>
+                        <h3 class="text-sm font-bold text-white">สคริปต์อัตโนมัติรันทุก 15 นาที บน GitHub Actions</h3>
                         <p class="text-[11px] text-slate-400">ดึงข้อมูลจุดความร้อน GISTDA (NOAA VIIRS) + ทิศทางลม Open-Meteo อัปเดตเข้าแอปอัตโนมัติ</p>
                     </div>
                 </div>
@@ -521,116 +571,64 @@
 
             <div class="overflow-y-auto space-y-4 pr-1 text-xs">
                 <div class="bg-slate-800/60 border border-slate-700 rounded-xl p-3 text-slate-300 leading-relaxed">
-                    คุณสามารถนำโค้ดด้านล่างไปวางใน GitHub Repository เพื่อให้เซิร์ฟเวอร์คลาวด์ของ GitHub รันดึงข้อมูลจาก GISTDA API และสภาพอากาศของ อ.สันทราย ทุกๆ 3 ชั่วโมงโดยไม่มีค่าใช้จ่ายและไม่ติดลิมิตครับ
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <span class="font-semibold text-emerald-400">1. ไฟล์สคริปต์ Python: <code>update_fire_data.py</code></span>
-                        <button onclick="copyCode('pythonCodeBlock')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px]">
-                            <i class="fa-regular fa-copy mr-1"></i> คัดลอกโค้ด
-                        </button>
-                    </div>
-                    <pre id="pythonCodeBlock" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-200 overflow-x-auto select-all font-mono">import os
-import json
-import requests
-from datetime import datetime
-
-# 1. ดึง API Key จาก GitHub Secrets
-GISTDA_API_KEY = os.environ.get("GISTDA_API_KEY")
-
-# ขอบเขตพิกัดอำเภอสันทราย จ.เชียงใหม่ (Bounding Box)
-SANSAI_BOUNDS = {"min_lat": 18.80, "max_lat": 19.15, "min_lon": 98.94, "max_lon": 99.15}
-
-def fetch_wind_data():
-    url = "https://api.open-meteo.com/v1/forecast"
-    params = {
-        "latitude": 19.015,
-        "longitude": 99.035,
-        "current": "temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m",
-        "timezone": "Asia/Bangkok"
-    }
-    res = requests.get(url, params=params, timeout=15)
-    return res.json().get("current", {})
-
-def fetch_gistda_viirs():
-    url = "https://api-gateway.gistda.or.th/api/2.0/resources/features/viirs/1day"
-    headers = {"API-Key": GISTDA_API_KEY, "Accept": "application/json"}
-    res = requests.get(url, headers=headers, timeout=20)
-    if res.status_code != 200:
-        return []
-    features = res.json().get("features", [])
-    sansai_hotspots = []
-    for f in features:
-        coords = f.get("geometry", {}).get("coordinates", [0, 0])
-        lon, lat = coords[0], coords[1]
-        if (SANSAI_BOUNDS["min_lat"] <= lat <= SANSAI_BOUNDS["max_lat"] and
-            SANSAI_BOUNDS["min_lon"] <= lon <= SANSAI_BOUNDS["max_lon"]):
-            sansai_hotspots.append(f)
-    return sansai_hotspots
-
-if __name__ == "__main__":
-    wind = fetch_wind_data()
-    hotspots = fetch_gistda_viirs()
-    output = {
-        "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "wind_sansai": wind,
-        "active_hotspots_count": len(hotspots),
-        "active_hotspots": hotspots
-    }
-    with open("sansai_live_status.json", "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, indent=2)
-    print(f"อัปเดตสำเร็จ: พบจุดความร้อนใน อ.สันทราย {len(hotspots)} จุด")</pre>
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <span class="font-semibold text-sky-400">2. ไฟล์ตั้งเวลา GitHub Actions (ทุก 3 ชม.): <code>.github/workflows/schedule_3hr.yml</code></span>
-                        <button onclick="copyCode('yamlCodeBlock')" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px]">
-                            <i class="fa-regular fa-copy mr-1"></i> คัดลอกโค้ด
-                        </button>
-                    </div>
-                    <pre id="yamlCodeBlock" class="bg-slate-950 border border-slate-800 rounded-xl p-3 text-[11px] text-slate-200 overflow-x-auto select-all font-mono">name: Update San Sai Fire & Wind Every 3 Hours
-
-on:
-  schedule:
-    - cron: '0 */3 * * *'  # รันอัตโนมัติทุกๆ 3 ชั่วโมง
-  workflow_dispatch:       # กดรันด้วยมือได้ตลอดเวลา
-
-jobs:
-  update-data:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install Requests
-        run: pip install requests
-
-      - name: Run GISTDA & Wind Script
-        env:
-          GISTDA_API_KEY: ${{ secrets.GISTDA_API_KEY }}
-        run: python update_fire_data.py
-
-      - name: Commit Updated Data
-        run: |
-          git config user.name "SanSai-FireBot"
-          git config user.email "bot@sansai-fire.local"
-          git add sansai_live_status.json
-          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update fire & wind data"
-          git push</pre>
+                    ระบบเชื่อมต่อกับไฟล์ <code>sansai_live_status.json</code> ที่อัปเดตอัตโนมัติทุก 15 นาทีผ่าน GitHub Actions พร้อมแจ้งเตือนเข้า LINE OA เฉพาะเมื่อพบจุดความร้อนใหม่ครับ
                 </div>
             </div>
 
             <div class="flex justify-end pt-2 border-t border-slate-800">
                 <button onclick="closeModal('scriptModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white">ปิดหน้าต่าง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: PERSONNEL PRIVACY & SELF-HIDE CONTROL -->
+    <div id="privacyModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                        <i class="fa-solid fa-user-shield text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">ตั้งค่าความเป็นส่วนตัว & สถานะเข้าเวร/ออกเวร (อส. 11 นาย)</h3>
+                        <p class="text-[11px] text-slate-400">เลือกเปิด/ปิดการแสดงหมุดรายบุคคล หรือดูวิธีปิดส่งพิกัดจากแอป OwnTracks</p>
+                    </div>
+                </div>
+                <button onclick="closeModal('privacyModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto space-y-3 pr-1 text-xs">
+                <!-- คำแนะนำการปิดจากแอป OwnTracks บนมือถือ -->
+                <div class="p-3 rounded-xl bg-blue-950/50 border border-blue-500/30 text-slate-200 space-y-1.5 leading-relaxed">
+                    <div class="font-bold text-sky-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-mobile-screen-button"></i> วิธีที่ 1: ปิดพิกัดด้วยตัวเองจากแอป OwnTracks บนมือถือ
+                    </div>
+                    <p class="text-[11px] text-slate-300">
+                        1. เมื่อออกเวร ให้แตะไอคอนโหมดมุมขวาบนในแอป OwnTracks แล้วเปลี่ยนเป็นโหมด <b class="text-amber-300">Quiet (รูปป้ายห้าม/หยุดส่ง)</b> หรือปิด GPS<br>
+                        2. ระบบจะ<b>ตัดหมุดออกจากแผนที่อัตโนมัติทันทีที่ไม่มีการส่งพิกัดใหม่เกิน 15 นาที</b> (หรือตั้งชื่อ/สถานะมีคำว่า <b>"ออกเวร" / "ปิด"</b> หมุดจะหายทันที)
+                    </p>
+                </div>
+
+                <!-- รายชื่อสวิตช์เปิด-ปิดรายบุคคลบนแผนที่ทันที -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-amber-300">วิธีที่ 2: กดซ่อน/แสดงหมุดรายบุคคลทันทีบนหน้าจอนี้</span>
+                        <div class="flex gap-1.5">
+                            <button onclick="setAllPersonnelPrivacy(false)" class="px-2 py-1 rounded bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 border border-emerald-500/40 text-[10px] font-semibold">แสดงทุกคน</button>
+                            <button onclick="setAllPersonnelPrivacy(true)" class="px-2 py-1 rounded bg-red-600/30 hover:bg-red-600/50 text-red-300 border border-red-500/40 text-[10px] font-semibold">ซ่อนทุกคน (ออกเวร)</button>
+                        </div>
+                    </div>
+                    <div id="individualPrivacyList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        <!-- สร้างรายการ อส. ทั้ง 11 นายอัตโนมัติด้วย JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-slate-800">
+                <span class="text-[11px] text-slate-400">* การกดซ่อนรายคนจะมีผลทันทีโดยไม่ต้องรอ 15 นาที</span>
+                <button onclick="closeModal('privacyModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white">บันทึกและปิดหน้าต่าง</button>
             </div>
         </div>
     </div>
@@ -868,11 +866,30 @@ jobs:
         let currentPersonnelLatLng = [18.848664, 99.045397];
         let personnelMarker = null;
 
-        // ตัวแปรเก็บสถานะการแสดงหมุด (ค่าเริ่มต้นให้เปิดไว้ หรือจำค่าเดิมที่น้องเคยกดปิดไว้)
+        // ตัวแปรเก็บสถานะการแสดงหมุดรวม และรายชื่อคนที่กดซ่อนหมุดรายบุคคล
         let isTrackingVisible = localStorage.getItem("HIDE_PERSONNEL_PIN") !== "true";
+        let hiddenIndividuals = JSON.parse(localStorage.getItem("HIDDEN_PERSONNEL_LIST") || "[]");
 
         // URL ของ Google Apps Script สำหรับดึงพิกัด OwnTracks (อส. 11 นาย)
         const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy21G8ofA8kMAivMMWW1BPoczPTs0Q/exec";
+
+        // ตารางรหัสมาตรฐานกำลังพล อส. ทั้ง 11 นาย
+        const PERSONNEL_ROSTER = {
+            "01": "01-Jaguar",
+            "02": "02-Art-Drone",
+            "03": "03-May",
+            "04": "04-Flukky",
+            "05": "05-Champ",
+            "06": "06-Arm",
+            "07": "07-Ken",
+            "08": "08-Nest",
+            "09": "09-Aosy",
+            "10": "10-Sorn",
+            "11": "11-Bel"
+        };
+
+        let personnelMarkers = {};
+
         window.onload = function() {
             initMap();
             renderStrategicMarkers();
@@ -880,12 +897,12 @@ jobs:
             applyHotspotFilters();
             renderStrategicList();
             renderTambonSummaryBars();
+            renderIndividualPrivacyList();
             fetchAllWeather();
 
             // อัปเดตหน้าตาปุ่มเข้าเวร/ออกเวรตอนเปิดเว็บ
             updateTrackingButtonUI();
 
-            // ดึงข้อมูลเฉพาะเมื่ออยู่ในสถานะ "เข้าเวร (เปิดแสดงหมุด)" เท่านั้น (เอาหมุด 11-Bel ที่ค้างไว้ออกแล้ว)
             if (isTrackingVisible) {
                 loadPersonnelLocations();
             }
@@ -894,25 +911,96 @@ jobs:
                     loadPersonnelLocations();
                 }
             }, 10000);
-            // บังคับให้แผนที่เรนเดอร์ขนาดให้พอดีหน้าจอทันที (แก้ปัญหาหน้าจอดำ)
+
             setTimeout(() => {
                 if (map) map.invalidateSize();
             }, 300);
 
-            // โหลด API Key ที่เคยบันทึกไว้
             const savedKey = localStorage.getItem("SANSAI_GISTDA_KEY");
             if (savedKey) {
                 document.getElementById("gistdaApiKeyInput").value = savedKey;
             }
         };
-// ฟังก์ชันสำหรับกดปุ่ม สลับสถานะ เข้าเวร (แสดงหมุด) / ออกเวร (ซ่อนหมุดทันที)
-function togglePersonnelTracking() {
+
+        // ฟังก์ชันจัดการความเป็นส่วนตัวรายบุคคล (ซ่อน/แสดงเฉพาะคน)
+        function isPersonHidden(standardName) {
+            return hiddenIndividuals.includes(standardName);
+        }
+
+        function toggleIndividualPrivacy(standardName) {
+            if (hiddenIndividuals.includes(standardName)) {
+                hiddenIndividuals = hiddenIndividuals.filter(n => n !== standardName);
+            } else {
+                hiddenIndividuals.push(standardName);
+                // ลบหมุดของคนนั้นออกจากแผนที่ทันที
+                if (personnelMarkers[standardName]) {
+                    layerPersonnel.removeLayer(personnelMarkers[standardName]);
+                    if (map) map.removeLayer(personnelMarkers[standardName]);
+                    delete personnelMarkers[standardName];
+                }
+            }
+            localStorage.setItem("HIDDEN_PERSONNEL_LIST", JSON.stringify(hiddenIndividuals));
+            renderIndividualPrivacyList();
+            if (isTrackingVisible) {
+                loadPersonnelLocations();
+            }
+        }
+
+        function setAllPersonnelPrivacy(hideAll) {
+            if (hideAll) {
+                hiddenIndividuals = Object.values(PERSONNEL_ROSTER);
+                layerPersonnel.clearLayers();
+                Object.keys(personnelMarkers).forEach(k => {
+                    if (map && personnelMarkers[k]) map.removeLayer(personnelMarkers[k]);
+                });
+                personnelMarkers = {};
+            } else {
+                hiddenIndividuals = [];
+                if (!isTrackingVisible) {
+                    isTrackingVisible = true;
+                    localStorage.setItem("HIDE_PERSONNEL_PIN", "false");
+                    updateTrackingButtonUI();
+                }
+            }
+            localStorage.setItem("HIDDEN_PERSONNEL_LIST", JSON.stringify(hiddenIndividuals));
+            renderIndividualPrivacyList();
+            if (isTrackingVisible) {
+                loadPersonnelLocations();
+            }
+        }
+
+        function renderIndividualPrivacyList() {
+            const container = document.getElementById("individualPrivacyList");
+            if (!container) return;
+            container.innerHTML = "";
+
+            Object.values(PERSONNEL_ROSTER).forEach(name => {
+                const hidden = isPersonHidden(name);
+                const div = document.createElement("div");
+                div.className = `p-2.5 rounded-xl border flex items-center justify-between transition ${hidden ? 'bg-slate-950/90 border-red-500/30' : 'bg-slate-800/80 border-emerald-500/30'}`;
+                div.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full ${hidden ? 'bg-red-500' : 'bg-emerald-400 animate-pulse'}"></span>
+                        <div>
+                            <div class="text-xs font-bold text-white">${name}</div>
+                            <div class="text-[10px] ${hidden ? 'text-red-400' : 'text-emerald-400'}">${hidden ? 'ซ่อนหมุด (ส่วนตัว/ออกเวร)' : 'อนุญาตแสดงพิกัด'}</div>
+                        </div>
+                    </div>
+                    <button onclick="toggleIndividualPrivacy('${name}')" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition ${hidden ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-red-600/30 hover:bg-red-600/50 text-red-200 border border-red-500/40'}">
+                        ${hidden ? 'เปิดแสดง' : 'กดซ่อน'}
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // ฟังก์ชันสำหรับกดปุ่ม สลับสถานะ เข้าเวร (แสดงหมุด) / ออกเวร (ซ่อนหมุดทันที)
+        function togglePersonnelTracking() {
             isTrackingVisible = !isTrackingVisible;
             localStorage.setItem("HIDE_PERSONNEL_PIN", !isTrackingVisible);
             updateTrackingButtonUI();
 
             if (!isTrackingVisible) {
-                // ถ้าน้องกดปิด (ออกเวร) -> ล้างหมุดทุกคนออกจากแผนที่และตัวแปรทั้งหมดทันที
                 if (typeof layerPersonnel !== "undefined" && layerPersonnel) {
                     layerPersonnel.clearLayers();
                 }
@@ -926,32 +1014,35 @@ function togglePersonnelTracking() {
                     map.removeLayer(personnelMarker);
                     personnelMarker = null;
                 }
+                const statusEl = document.getElementById("personnelStatusText");
+                if (statusEl) {
+                    statusEl.innerHTML = `• ปิดการแสดงหมุดกำลังพลชั่วคราว (โหมดส่วนตัว)`;
+                }
             } else {
-                // ถ้าน้องกดเปิด (เข้าเวร) -> ดึงพิกัดกลับมาแสดงทันที
                 loadPersonnelLocations();
             }
         }
 
-        // ฟังก์ชันสร้างและอัปเดตปุ่มบนหน้าจออัตโนมัติ (ไม่ต้องไปแก้ HTML เพิ่ม)
         function updateTrackingButtonUI() {
             let btn = document.getElementById("btnToggleTracking");
             if (!btn) {
                 btn = document.createElement("button");
                 btn.id = "btnToggleTracking";
                 btn.onclick = togglePersonnelTracking;
-                btn.style.cssText = "position: fixed; bottom: 20px; left: 20px; z-index: 9999; padding: 10px 16px; border: 2px solid #ffffff; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.4); font-family: inherit; transition: 0.2s;";
+                btn.style.cssText = "position: fixed; bottom: 20px; left: 20px; z-index: 9999; padding: 10px 16px; border: 2px solid #ffffff; border-radius: 10px; font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-family: inherit; transition: 0.2s;";
                 document.body.appendChild(btn);
             }
             if (isTrackingVisible) {
                 btn.innerHTML = "🟢 สถานะ อส.: กำลังเข้าเวร (คลิกเพื่อซ่อนหมุด/ออกเวร)";
-                btn.style.backgroundColor = "#16a34a"; // สีเขียว
+                btn.style.backgroundColor = "#16a34a";
                 btn.style.color = "#ffffff";
             } else {
                 btn.innerHTML = "🔴 สถานะ อส.: ออกเวร / ซ่อนหมุดแล้ว (คลิกเมื่อเริ่มเข้าเวร)";
-                btn.style.backgroundColor = "#dc2626"; // สีแดง
+                btn.style.backgroundColor = "#dc2626";
                 btn.style.color = "#ffffff";
             }
         }
+
         window.addEventListener('resize', () => {
             if (map) map.invalidateSize();
         });
@@ -984,7 +1075,6 @@ function togglePersonnelTracking() {
             layerLiveGistda.addTo(map);
             layerPersonnel.addTo(map);
 
-            // คลิกบนแผนที่เพื่อจำลองจุดเกิดไฟใหม่และวิเคราะห์ยุทธวิธี
             map.on('click', function(e) {
                 if (simModeActive) {
                     createSimulatedFire(e.latlng.lat, e.latlng.lng, "จุดความร้อนจำลอง (คลิกบนแผนที่)");
@@ -992,24 +1082,6 @@ function togglePersonnelTracking() {
             });
         }
 
-        // ตารางรหัสมาตรฐานกำลังพล อส. ทั้ง 11 นาย (รองรับ Android ที่พิมพ์ขีด "-" ไม่ได้)
-        const PERSONNEL_ROSTER = {
-            "01": "01-Jaguar",
-            "02": "02-Art-Drone",
-            "03": "03-May",
-            "04": "04-Flukky",
-            "05": "05-Champ",
-            "06": "06-Arm",
-            "07": "07-Ken",
-            "08": "08-Nest",
-            "09": "09-Aosy",
-            "10": "10-Sorn",
-            "11": "11-Bel"
-        };
-
-        let personnelMarkers = {};
-
-        // แปลงรหัสที่ไม่มีขีดจาก Android (เช่น 01Jaguar, 02ArtDrone, หรือ 01) ให้มีขีดตามมาตรฐาน
         function normalizePersonnelId(rawName, rawTid) {
             const combined = String(rawName || rawTid || "").trim();
             const numMatch = combined.match(/^0?(\d{1,2})/);
@@ -1032,6 +1104,8 @@ function togglePersonnelTracking() {
         function updatePersonnelMarkerOnMap(lat, lng, rawName, timeStr, batt, status, rawTid) {
             if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
             const name = normalizePersonnelId(rawName, rawTid);
+            if (!isTrackingVisible || isPersonHidden(name)) return;
+
             currentPersonnelLatLng = [lat, lng];
 
             const personIcon = L.divIcon({
@@ -1051,18 +1125,23 @@ function togglePersonnelTracking() {
             });
 
             const popupHtml = `
-                <div class="p-1.5 min-w-[210px] space-y-1 text-xs">
+                <div class="p-1.5 min-w-[220px] space-y-1.5 text-xs">
                     <div class="flex items-center justify-between">
                         <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold text-[10px]">OwnTracks Live</span>
                         <span class="text-[11px] text-emerald-400 font-semibold"><i class="fa-solid fa-battery-three-quarters mr-1"></i>${batt || '--'}%</span>
                     </div>
-                    <div class="text-sm font-bold text-white pt-1">${name}</div>
-                    <div class="text-xs text-slate-300"><b>สถานะ:</b> ${status || 'ปฏิบัติงาน (OwnTracks)'}</div>
+                    <div class="text-sm font-bold text-white pt-0.5">${name}</div>
+                    <div class="text-xs text-slate-300"><b>สถานะ:</b> ${status || 'กำลังปฏิบัติงาน'}</div>
                     <div class="text-[11px] text-slate-400"><b>พิกัด:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
                     <div class="text-[11px] text-slate-400"><b>อัปเดต:</b> ${timeStr || 'ล่าสุด'}</div>
+                    <div class="pt-1.5 border-t border-slate-700 flex gap-1.5">
+                        <button onclick="toggleIndividualPrivacy('${name}')" class="w-full py-1.5 px-2 rounded-lg bg-red-600/30 hover:bg-red-600/50 border border-red-500/40 text-red-200 font-semibold text-[11px] transition">
+                            🔴 ซ่อนหมุดของฉัน (ออกเวร/ส่วนตัว)
+                        </button>
+                    </div>
                 </div>
             `;
-if (!isTrackingVisible) return;
+
             if (personnelMarkers[name]) {
                 personnelMarkers[name].setLatLng([lat, lng]);
                 personnelMarkers[name].setIcon(personIcon);
@@ -1077,13 +1156,13 @@ if (!isTrackingVisible) return;
             }
         }
 
-       async function loadPersonnelLocations() {
-     if (!isTrackingVisible) return;      
+        async function loadPersonnelLocations() {
+            if (!isTrackingVisible) return;      
             const defaultUrl = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy2lG8ofA8kMAivMMWW1BPoczPTs0Q/exec";
             const urlToFetch = (typeof GAS_WEBAPP_URL !== 'undefined' && GAS_WEBAPP_URL && GAS_WEBAPP_URL.startsWith("http")) ? GAS_WEBAPP_URL : defaultUrl;
 
             try {
-                const res = await fetch(urlToFetch, { redirect: "follow" });
+                const res = await fetch(urlToFetch + "?t=" + Date.now(), { redirect: "follow" });
                 const data = await res.json();
                 const records = Array.isArray(data) ? data : (data.records || data.data || [data]);
 
@@ -1093,7 +1172,7 @@ if (!isTrackingVisible) return;
                     
                     let lat, lng, rawName, rawTid, batt, time, status;
                     if (Array.isArray(row)) {
-                        time = row[0] || "ล่าสุด";
+                        time = row[0] || "";
                         rawName = row[1] || "11-Bel";
                         lat = parseFloat(row[2]);
                         lng = parseFloat(row[3]);
@@ -1105,8 +1184,8 @@ if (!isTrackingVisible) return;
                         rawName = row.name || row.Name || row.user || row.User || row.device || row.DeviceID || row.topic || "";
                         rawTid = row.tid || row.TrackerID || row.trackerId || "";
                         batt = row.battery ?? row.batt ?? row.Battery ?? row.Batt ?? "--";
-                        time = row.time || row.timestamp || row.Timestamp || row.UpdatedAt || "ล่าสุด";
-                        status = row.status || row.Status || "ปฏิบัติงาน (OwnTracks)";
+                        time = row.tst ?? row.time ?? row.timestamp ?? row.Timestamp ?? row.UpdatedAt ?? row.created_at ?? row.date ?? row["วันที่"] ?? row["เวลา"] ?? "";
+                        status = row.status || row.Status || row.event || row._type || "ปฏิบัติงาน (OwnTracks)";
                     }
 
                     if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
@@ -1122,45 +1201,58 @@ if (!isTrackingVisible) return;
                     }
                 });
 
-const allPersonList = Object.values(latestByPerson);
+                const allPersonList = Object.values(latestByPerson);
                 const activeList = [];
-                const nowMs = new Date().getTime();
-                const TIMEOUT_MINUTES = 15; // ตั้งเวลาตัดหมุดอัตโนมัติที่ 15 นาที
+                const nowMs = Date.now();
+                const TIMEOUT_MINUTES = 15; // ตัดหมุดคนที่หยุดส่งพิกัดเกิน 15 นาทีอัตโนมัติ
 
                 allPersonList.forEach(p => {
                     let isOffline = false;
+                    let displayTimeStr = "ล่าสุด";
 
-                    // ตรวจสอบเวลาอัปเดตล่าสุดของแต่ละคน (รองรับทั้งรูปแบบเวลาสากล, Timestamp และ วัน/เดือน/ปี)
-                    if (p.time && p.time !== "ล่าสุด" && p.time !== "--") {
-                        let parsedTime = new Date(p.time).getTime();
-                        
-                        // กรณีรูปแบบวันที่เป็น วัน/เดือน/ปี (DD/MM/YYYY)
-                        if (isNaN(parsedTime) && typeof p.time === "string") {
-                            const m = p.time.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
-                            if (m) {
-                                let year = parseInt(m[3], 10);
-                                if (year > 2400) year -= 543; // แปลง พ.ศ. เป็น ค.ศ.
-                                parsedTime = new Date(year, parseInt(m[2], 10) - 1, parseInt(m[1], 10), parseInt(m[4], 10), parseInt(m[5], 10), parseInt(m[6] || 0, 10)).getTime();
+                    // 1. ตรวจสอบหากเจ้าตัวกดซ่อนหมุดรายบุคคลไว้
+                    if (isPersonHidden(p.name)) {
+                        isOffline = true;
+                    }
+
+                    // 2. ตรวจสอบเวลาอัปเดตล่าสุด (รองรับทั้ง tst ของ OwnTracks และวันที่ของ Sheets)
+                    if (!isOffline && p.time !== undefined && p.time !== null && String(p.time).trim() !== "" && p.time !== "ล่าสุด" && p.time !== "--") {
+                        let parsedTime = NaN;
+                        const rawTime = p.time;
+
+                        if (typeof rawTime === "number" || /^\d+$/.test(String(rawTime).trim())) {
+                            parsedTime = Number(rawTime);
+                            if (parsedTime < 10000000000) parsedTime *= 1000;
+                        } else if (typeof rawTime === "string") {
+                            parsedTime = new Date(rawTime).getTime();
+                            if (isNaN(parsedTime)) {
+                                const m = rawTime.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+|,\s*|\s*เวลา\s*)(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+                                if (m) {
+                                    let year = parseInt(m[3], 10);
+                                    if (year > 2400) year -= 543;
+                                    parsedTime = new Date(year, parseInt(m[2], 10) - 1, parseInt(m[1], 10), parseInt(m[4], 10), parseInt(m[5], 10), parseInt(m[6] || 0, 10)).getTime();
+                                }
                             }
                         }
 
-                        if (!isNaN(parsedTime)) {
-                            // ถ้าเป็น Unix Timestamp หน่วยวินาที (10 หลัก) ให้แปลงเป็นมิลลิวินาที
-                            if (parsedTime < 10000000000) parsedTime *= 1000;
+                        if (!isNaN(parsedTime) && parsedTime > 0) {
                             const diffMin = (nowMs - parsedTime) / (1000 * 60);
+                            const dt = new Date(parsedTime);
+                            displayTimeStr = dt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ` น. (${Math.max(0, Math.round(diffMin))} นาทีที่แล้ว)`;
+                            
                             if (diffMin > TIMEOUT_MINUTES) {
                                 isOffline = true;
                             }
                         }
                     }
 
-                    // เช็คเพิ่มเติม: ถ้าน้องตั้งสถานะว่า ออกเวร หรือ Offline
-                    if (p.status && (String(p.status).includes("ออกเวร") || String(p.status).toLowerCase().includes("offline"))) {
+                    // 3. เช็กคำสั่งสถานะ ออกเวร / Offline / Quiet / ปิด
+                    const statusStr = String(p.status || "").toLowerCase();
+                    if (statusStr.includes("ออกเวร") || statusStr.includes("offline") || statusStr.includes("pause") || statusStr.includes("quiet") || statusStr.includes("ปิด")) {
                         isOffline = true;
                     }
 
-if (isOffline) {
-                        // ลบเฉพาะหมุดของคนที่ออกเวร/ปิดแอปเกิน 15 นาที ออกจากแผนที่ทันที
+                    if (isOffline) {
                         if (typeof personnelMarkers !== "undefined" && personnelMarkers[p.name]) {
                             if (typeof layerPersonnel !== "undefined" && layerPersonnel) {
                                 layerPersonnel.removeLayer(personnelMarkers[p.name]);
@@ -1169,9 +1261,8 @@ if (isOffline) {
                             delete personnelMarkers[p.name];
                         }
                     } else {
-                        // คนที่ยังเข้าเวรปกติ ให้แสดงหมุดต่อไป
                         activeList.push(p);
-                        updatePersonnelMarkerOnMap(p.lat, p.lng, p.name, p.time, p.batt, p.status);
+                        updatePersonnelMarkerOnMap(p.lat, p.lng, p.name, displayTimeStr, p.batt, p.status);
                     }
                 });
 
@@ -1183,7 +1274,7 @@ if (isOffline) {
                     }
                 } else {
                     if (statusEl) {
-                        statusEl.innerHTML = `• ไม่มีเจ้าหน้าที่กำลังเข้าเวร (ปิดการติดตาม/ออกเวรทั้งหมด)`;
+                        statusEl.innerHTML = `• ไม่มีเจ้าหน้าที่เปิดแชร์พิกัด (ซ่อนหมุด/ออกเวร)`;
                     }
                 }
             } catch (err) {
@@ -1205,11 +1296,12 @@ if (isOffline) {
             if (map && markersList.length > 1) {
                 const group = L.featureGroup(markersList);
                 map.fitBounds(group.getBounds().pad(0.25));
-            } else if (map && currentPersonnelLatLng) {
-                map.flyTo(currentPersonnelLatLng, 16, { duration: 1.0 });
-                if (personnelMarker) {
-                    setTimeout(() => personnelMarker.openPopup(), 1000);
-                }
+            } else if (map && markersList.length === 1) {
+                const singlePos = markersList[0].getLatLng();
+                map.flyTo(singlePos, 16, { duration: 1.0 });
+                setTimeout(() => markersList[0].openPopup(), 1000);
+            } else {
+                openModal('privacyModal');
             }
         }
 
@@ -1235,9 +1327,13 @@ if (isOffline) {
             toggleLayer(layerHotspots, document.getElementById('chkHotspots').checked);
             toggleLayer(layerWind, document.getElementById('chkWind').checked);
             toggleLayer(layerLiveGistda, document.getElementById('chkLiveGistda').checked);
+            if (typeof layerGistdaLive !== "undefined") {
+                toggleLayer(layerGistdaLive, document.getElementById('chkLiveGistda').checked);
+            }
         }
 
         function toggleLayer(layer, show) {
+            if (!map || !layer) return;
             if (show) {
                 if (!map.hasLayer(layer)) map.addLayer(layer);
             } else {
@@ -1319,10 +1415,10 @@ if (isOffline) {
         // 6. วาดและกรองจุดความร้อนย้อนหลัง 128 จุด
         // ============================================================================
         function getMonthColor(m) {
-            if (m === "02") return "#facc15"; // ก.พ. เหลือง
-            if (m === "03") return "#ef4444"; // มี.ค. แดง
-            if (m === "04") return "#f97316"; // เม.ย. ส้ม
-            if (m === "05") return "#a855f7"; // พ.ค. ม่วง
+            if (m === "02") return "#facc15";
+            if (m === "03") return "#ef4444";
+            if (m === "04") return "#f97316";
+            if (m === "05") return "#a855f7";
             return "#ef4444";
         }
 
@@ -1487,16 +1583,26 @@ if (isOffline) {
         }
 
         // ============================================================================
-        // 8. ดึงข้อมูลทิศทางลมและสภาพอากาศจริง (Open-Meteo API ทุก 3 ชั่วโมง)
+        // 8. ดึงข้อมูลทิศทางลมและสภาพอากาศจริง + อัปเดตหน้าปัดเข็มทิศ
         // ============================================================================
         function degreeToThaiCompass(deg) {
             const dirs = ["เหนือ (N)", "ตะวันออกเฉียงเหนือ (NE)", "ตะวันออก (E)", "ตะวันออกเฉียงใต้ (SE)", "ใต้ (S)", "ตะวันตกเฉียงใต้ (SW)", "ตะวันตก (W)", "ตะวันตกเฉียงเหนือ (NW)"];
             return dirs[Math.round(deg / 45) % 8];
         }
 
+        function updateCompassWidget(windFromDeg, windSpeed) {
+            const blowToDeg = (windFromDeg + 180) % 360;
+            const needle = document.getElementById("compassWindNeedle");
+            const dirText = document.getElementById("compassBlowToText");
+            const spdText = document.getElementById("compassWindSpeedText");
+
+            if (needle) needle.style.transform = `rotate(${blowToDeg}deg)`;
+            if (dirText) dirText.innerText = `${degreeToThaiCompass(blowToDeg)} (${ Math.round(blowToDeg) }°)`;
+            if (spdText) spdText.innerText = `ความเร็วลม: ${windSpeed} กม./ชม.`;
+        }
+
         async function fetchAllWeather() {
             try {
-                // ดึงข้อมูลสถานีหลักโซนกลาง/เขาแม่แฝก พร้อมพยากรณ์รายชั่วโมง
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=19.015&longitude=99.035&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m&timezone=Asia%2FBangkok&forecast_days=2`;
                 const res = await fetch(url);
                 const data = await res.json();
@@ -1507,13 +1613,15 @@ if (isOffline) {
                     document.getElementById("navHum").innerText = `${c.relative_humidity_2m}%`;
                     document.getElementById("navWind").innerText = `${c.wind_speed_10m} กม./ชม. (${degreeToThaiCompass(c.wind_direction_10m)})`;
 
-                    // อัปเดตค่าจริงลงในสถานีตรวจวัดทั้ง 5 จุดในสันทราย (ปรับตามระดับความสูงจริง)
                     windStations.forEach((ws, idx) => {
                         ws.temp = +(c.temperature_2m - (idx === 1 ? 1.8 : idx * 0.2)).toFixed(1);
                         ws.hum = Math.min(100, Math.max(15, Math.round(c.relative_humidity_2m + (idx === 1 ? 4 : -1))));
                         ws.speed = +(c.wind_speed_10m + (idx === 1 ? 2.5 : idx * 0.4)).toFixed(1);
                         ws.dir = (c.wind_direction_10m + (idx * 5 - 5) + 360) % 360;
                     });
+
+                    // อัปเดตเข็มทิศบนแผนที่
+                    updateCompassWidget(c.wind_direction_10m, c.wind_speed_10m);
                 }
 
                 renderWindVectorsOnMap();
@@ -1523,6 +1631,7 @@ if (isOffline) {
                 }
             } catch (err) {
                 console.warn("Fallback weather data used:", err);
+                updateCompassWidget(windStations[1].dir, windStations[1].speed);
                 renderWindVectorsOnMap();
                 renderWeatherStationCards();
             }
@@ -1531,7 +1640,6 @@ if (isOffline) {
         function renderWindVectorsOnMap() {
             layerWind.clearLayers();
             windStations.forEach(ws => {
-                // ทิศที่ลมพัดไป (ทิศทางไฟลาม) = ทิศที่มาของลม + 180 องศา
                 const blowToDeg = (ws.dir + 180) % 360;
                 const windIcon = L.divIcon({
                     className: 'wind-vector-marker',
@@ -1591,7 +1699,6 @@ if (isOffline) {
         function render3HourForecastTable(hourly) {
             const tbody = document.getElementById("forecast3HrTable");
             tbody.innerHTML = "";
-            // แสดงผลทุกๆ 3 ชั่วโมง จำนวน 8 รอบ (24 ชั่วโมงข้างหน้า)
             for (let i = 0; i < 24; i += 3) {
                 if (!hourly.time[i]) break;
                 const timeStr = hourly.time[i].split("T")[1];
@@ -1629,7 +1736,6 @@ if (isOffline) {
         }
 
         function simulateRandomFire() {
-            // สุ่มพิกัดใกล้จุดเสี่ยงใน อ.สันทราย เช่น แม่เตาไห หรือ ไหม้ทุกปี
             const targets = [
                 { lat: 19.0419, lng: 99.0429, label: "จำลองจุดความร้อน VIIRS (โซนไหม้ทุกปี ต.แม่แฝก)" },
                 { lat: 18.9525, lng: 99.0462, label: "จำลองจุดความร้อน VIIRS (โซนแม่เตาไห ต.ป่าไผ่)" },
@@ -1645,16 +1751,13 @@ if (isOffline) {
         function createSimulatedFire(lat, lng, title) {
             layerLiveGistda.clearLayers();
 
-            // 1. หาสถานีลมที่ใกล้ที่สุดเพื่อคำนวณทิศทางไฟลาม
             const nearestWind = windStations[1];
-            const spreadDirectionDeg = (nearestWind.dir + 180) % 360; // ทิศที่ลมพัดไป
-            const spreadDistKm = Math.max(0.8, (nearestWind.speed * 0.12)); // ระยะคาดการณ์ไฟลามใน 3 ชม.
+            const spreadDirectionDeg = (nearestWind.dir + 180) % 360;
+            const spreadDistKm = Math.max(0.8, (nearestWind.speed * 0.12));
 
-            // 2. คำนวณระยะห่างจากจุดยุทธศาสตร์และเส้นทางที่รถเข้าถึง
             const nearestSP = findNearestStrategicPoint(lat, lng);
             const nearestRoute = findNearestRouteDistance(lat, lng);
 
-            // 3. วาดกรวยคาดการณ์พื้นที่ไฟลามตามทิศทางลม (Fire Spread Cone)
             const tip1 = destinationPoint(lat, lng, spreadDistKm, spreadDirectionDeg - 18);
             const tipCenter = destinationPoint(lat, lng, spreadDistKm * 1.15, spreadDirectionDeg);
             const tip2 = destinationPoint(lat, lng, spreadDistKm, spreadDirectionDeg + 18);
@@ -1673,7 +1776,6 @@ if (isOffline) {
             });
             layerLiveGistda.addLayer(spreadPolygon);
 
-            // 4. วาดเส้นประเชื่อมไปยังเส้นทางที่รถเข้าถึงที่ใกล้ที่สุด
             const accessLine = L.polyline([[lat, lng], nearestRoute.closestPoint], {
                 color: '#10b981',
                 weight: 3,
@@ -1681,7 +1783,6 @@ if (isOffline) {
             });
             layerLiveGistda.addLayer(accessLine);
 
-            // 5. วาดหมุดจุดความร้อนเกิดใหม่แบบกระพริบ
             const fireIcon = L.divIcon({
                 className: 'live-fire-icon',
                 html: `<div class="w-8 h-8 rounded-full bg-red-600 border-2 border-white flex items-center justify-center text-white shadow-xl hotspot-pulse">
@@ -1718,7 +1819,6 @@ if (isOffline) {
             `;
             marker.bindPopup(popupHtml).addTo(layerLiveGistda).openPopup();
 
-            // อัปเดตกล่องแจ้งเตือนยุทธวิธีด้านซ้ายล่าง
             document.getElementById("tacticalAlertContent").innerHTML = `
                 <div class="space-y-1 text-slate-200">
                     <div class="font-bold text-red-400">${title}</div>
@@ -1761,7 +1861,6 @@ if (isOffline) {
                 const geojson = await res.json();
                 const features = geojson.features || [];
 
-                // กรองเฉพาะพิกัดในอำเภอสันทรายและพื้นที่รอยต่อ
                 const sansaiFeatures = features.filter(f => {
                     const c = f.geometry?.coordinates || [0, 0];
                     return (c[1] >= 18.80 && c[1] <= 19.15 && c[0] >= 98.94 && c[0] <= 99.15);
@@ -1780,7 +1879,7 @@ if (isOffline) {
                 statusBox.innerHTML = `
                     <div class="text-amber-300 space-y-1">
                         <div><i class="fa-solid fa-triangle-exclamation mr-1"></i>เบราว์เซอร์อาจถูกบล็อกด้วยระบบความปลอดภัย CORS ของเซิร์ฟเวอร์ GISTDA เมื่อเรียกจากหน้าเว็บโดยตรง (${err.message})</div>
-                        <div class="text-slate-400">คำแนะนำ: เมื่อนำโค้ดสคริปต์ Python ไปรันบน <b>GitHub Actions</b> (ดูที่ปุ่มสคริปต์รันทุก 3 ชม.) จะสามารถดึงข้อมูลผ่าน API Key นี้ได้ 100% โดยไม่ติด CORS ครับ</div>
+                        <div class="text-slate-400">คำแนะนำ: ระบบกำลังซิงค์ข้อมูลจุดความร้อนผ่านไฟล์ <code>sansai_live_status.json</code> ที่ GitHub Actions อัปเดตทุก 15 นาทีโดยอัตโนมัติครับ</div>
                     </div>
                 `;
             }
@@ -1884,27 +1983,24 @@ if (isOffline) {
             document.execCommand("copy");
             document.body.removeChild(textarea);
         }
-        // ==========================================
-        // ระบบดึงจุดความร้อน GISTDA (เฉพาะ อ.สันทราย) และแสดงหมุดรูปไฟ 🔥
-        // ==========================================
-const layerGistdaLive = L.layerGroup();
 
-        // 1. ฟังก์ชันคัดกรองเฉพาะพื้นที่ "อำเภอสันทราย จ.เชียงใหม่" 100%
+        // ==========================================
+        // 13. ระบบดึงจุดความร้อน GISTDA (เฉพาะ อ.สันทราย) และแสดงหมุดรูปไฟ 🔥
+        // ==========================================
+        const layerGistdaLive = L.layerGroup();
+
         function isSansaiHotspot(item) {
             const props = item.properties || item;
             const amphoe = String(props.ap_tn || props.amphoe || props.amphoe_t || props.district || "").trim();
             const apCode = String(props.ap_idn || props.ap_code || "").trim();
 
-            // เช็กชั้นที่ 1: ชื่ออำเภอมีคำว่า "สันทราย" หรือรหัสอำเภอ 5006
             if (amphoe.includes("สันทราย") || amphoe.toLowerCase().includes("san sai") || apCode === "5006") {
                 return true;
             }
-            // ถ้ามีชื่ออำเภออื่นระบุชัดเจน (เช่น แม่ริม, ดอยสะเก็ด) ให้ตัดทิ้งทันที
             if (amphoe !== "") {
                 return false;
             }
 
-            // เช็กชั้นที่ 2: กรณีไม่มีชื่ออำเภอ ให้เช็กกรอบพิกัด (Bounding Box) ของ อ.สันทราย
             const geom = item.geometry || {};
             const coords = geom.coordinates || [];
             const lat = parseFloat(props.lat ?? props.latitude ?? coords[1]);
@@ -1916,7 +2012,6 @@ const layerGistdaLive = L.layerGroup();
             return false;
         }
 
-        // 2. ฟังก์ชันสร้างหมุด "รูปไฟ 🔥" พร้อมป๊อปอัปแสดงรายละเอียดพิกัด
         function renderGistdaFireMarkers(hotspots) {
             if (map && !map.hasLayer(layerGistdaLive)) {
                 layerGistdaLive.addTo(map);
@@ -1938,7 +2033,6 @@ const layerGistdaLive = L.layerGroup();
                 const acqTime = props.acq_time || props.time || "ล่าสุด";
                 const confidence = props.confidence || props.conf || "สูง";
 
-                // ไอคอนรูปเปลวไฟกระพริบเตือนภัย
                 const fireIcon = L.divIcon({
                     className: 'gistda-fire-marker',
                     html: `
@@ -1981,11 +2075,9 @@ const layerGistdaLive = L.layerGroup();
             });
         }
 
-        // 3. ฟังก์ชันดึงข้อมูลจากไฟล์ sansai_live_status.json และ GISTDA API ทุกๆ 5 นาที
         async function fetchRealTimeSansaiHotspots() {
             let foundSpots = [];
 
-            // 3.1 ดึงจากไฟล์ sansai_live_status.json ที่สคริปต์ Python อัปเดตไว้บน GitHub ก่อน
             try {
                 const localRes = await fetch("sansai_live_status.json?t=" + Date.now());
                 if (localRes.ok) {
@@ -1997,7 +2089,6 @@ const layerGistdaLive = L.layerGroup();
                 console.debug("ยังไม่มีข้อมูลจุดความร้อนใน sansai_live_status.json");
             }
 
-            // 3.2 ถ้านำ GISTDA API Key มาใส่ในหน้าเว็บ ให้ดึงตรงจาก GISTDA ทันที
             const apiKey = localStorage.getItem("SANSAI_GISTDA_KEY") || "";
             if (apiKey && foundSpots.length === 0) {
                 try {
@@ -2021,7 +2112,6 @@ const layerGistdaLive = L.layerGroup();
             }
         }
 
-        // รอให้แผนที่สร้างเสร็จก่อนค่อยดึงข้อมูลจุดความร้อน และเช็กซ้ำอัตโนมัติทุกๆ 5 นาที
         setTimeout(() => {
             if (map && !map.hasLayer(layerGistdaLive)) {
                 layerGistdaLive.addTo(map);
