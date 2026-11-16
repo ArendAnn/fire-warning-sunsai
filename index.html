@@ -1498,7 +1498,7 @@
             return dirs[Math.round(deg / 45) % 8];
         }
 
-        async function fetchAllWeather() {
+async function fetchAllWeather() {
             try {
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=19.015&longitude=99.035&current=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m,wind_direction_10m&timezone=Asia%2FBangkok&forecast_days=2`;
                 const res = await fetch(url);
@@ -1506,15 +1506,16 @@
 
                 if (data.current) {
                     const c = data.current;
+                    const blowTo = (c.wind_direction_10m + 180) % 360;
                     document.getElementById("navTemp").innerText = `${c.temperature_2m}°C`;
                     document.getElementById("navHum").innerText = `${c.relative_humidity_2m}%`;
-                    document.getElementById("navWind").innerText = `${c.wind_speed_10m} กม./ชม. (${degreeToThaiCompass(c.wind_direction_10m)})`;
+                    document.getElementById("navWind").innerText = `${c.wind_speed_10m} กม./ชม. (พัดไป ${degreeToThaiCompass(blowTo).split(" ")[0]})`;
 
                     windStations.forEach((ws, idx) => {
                         ws.temp = +(c.temperature_2m - (idx === 1 ? 1.8 : idx * 0.2)).toFixed(1);
                         ws.hum = Math.min(100, Math.max(15, Math.round(c.relative_humidity_2m + (idx === 1 ? 4 : -1))));
                         ws.speed = +(c.wind_speed_10m + (idx === 1 ? 2.5 : idx * 0.4)).toFixed(1);
-                        ws.dir = (c.wind_direction_10m + (idx * 5 - 5) + 360) % 360;
+                        ws.dir = c.wind_direction_10m;
                     });
 
                     updateCompassWidget(c.wind_direction_10m, c.wind_speed_10m);
@@ -1532,7 +1533,6 @@
                 renderWeatherStationCards();
             }
         }
-
         function renderWindVectorsOnMap() {
             layerWind.clearLayers();
             windStations.forEach(ws => {
