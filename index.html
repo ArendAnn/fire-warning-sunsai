@@ -1122,21 +1122,51 @@ if (!isTrackingVisible) return;
                     }
                 });
 
-                const activeList = Object.values(latestByPerson);
-                const statusEl = document.getElementById("personnelStatusText");
+const allPersonList = Object.values(latestByPerson);
+                const activeList = [];
+                const nowMs = new Date().getTime();
+                const TIMEOUT_MINUTES = 15; // ตั้งเวลาตัดหมุดอัตโนมัติที่ 15 นาที
 
-                if (activeList.length > 0) {
-                    activeList.forEach(p => {
-                        updatePersonnelMarkerOnMap(p.lat, p.lng, p.name, p.time, p.batt, p.status);
-                    });
-                    if (statusEl) {
-                        const latestPerson = activeList[activeList.length - 1];
-                        statusEl.innerHTML = `• ออนไลน์ ${activeList.length} นาย (${latestPerson.name}: แบต ${latestPerson.batt}%)`;
+                allPersonList.forEach(p => {
+                    let isOffline = false;
+
+                    // ตรวจสอบเวลาอัปเดตล่าสุดของแต่ละคน (รองรับทั้งรูปแบบเวลาสากล, Timestamp และ วัน/เดือน/ปี)
+                    if (p.time && p.time !== "ล่าสุด" && p.time !== "--") {
+                        let parsedTime = new Date(p.time).getTime();
+                        
+                        // กรณีรูปแบบวันที่เป็น วัน/เดือน/ปี (DD/MM/YYYY)
+                        if (isNaN(parsedTime) && typeof p.time === "string") {
+                            const m = p.time.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?/);
+                            if (m) {
+                                let year = parseInt(m[3], 10);
+                                if (year > 2400) year -= 543; // แปลง พ.ศ. เป็น ค.ศ.
+                                parsedTime = new Date(year, parseInt(m[2], 10) - 1, parseInt(m[1], 10), parseInt(m[4], 10), parseInt(m[5], 10), parseInt(m[6] || 0, 10)).getTime();
+                            }
+                        }
+
+                        if (!isNaN(parsedTime)) {
+                            // ถ้าเป็น Unix Timestamp หน่วยวินาที (10 หลัก) ให้แปลงเป็นมิลลิวินาที
+                            if (parsedTime < 10000000000) parsedTime *= 1000;
+                            const diffMin = (nowMs - parsedTime) / (1000 * 60);
+                            if (diffMin > TIMEOUT_MINUTES) {
+                                isOffline = true;
+                            }
+                        }
                     }
-                } else {
-                    if (statusEl) {
-                        statusEl.innerHTML = `• แสดงพิกัดเริ่มต้น (รอข้อมูลจาก Google Sheets)`;
+
+                    // เช็คเพิ่มเติม: ถ้าน้องตั้งสถานะว่า ออกเวร หรือ Offline
+                    if (p.status && (String(p.status).includes("ออกเวร") || String(p.status).toLowerCase().includes("offline"))) {
+                        isOffline = true;
                     }
+
+                    if (isOffline) {
+                        // ลบเฉพาะหมุดของคนที่ออกเวร/ปิดแอปเกิน 15 นาที ออกจากแผนที่ทันที
+                        if (typeof personnelMarkers !== "undefined" && personnelMarkers[p.name]) {
+                            if (typeof layerPersonnel !== "undefined" && layerPersonnel) {
+                                layerPersonnel.removeLayer(personnelMarkers[p.name]);
+                            }
+                            if (map) map.removeLayer(personnelMarkers[p.name]);
+                            delete personnelMarkers[p.name];
                 }
             } catch (err) {
                 console.warn("OwnTracks fetch warning:", err);
