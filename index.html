@@ -868,8 +868,11 @@ jobs:
         let currentPersonnelLatLng = [18.848664, 99.045397];
         let personnelMarker = null;
 
+        // ตัวแปรเก็บสถานะการแสดงหมุด (ค่าเริ่มต้นให้เปิดไว้ หรือจำค่าเดิมที่น้องเคยกดปิดไว้)
+        let isTrackingVisible = localStorage.getItem("HIDE_PERSONNEL_PIN") !== "true";
+
         // URL ของ Google Apps Script สำหรับดึงพิกัด OwnTracks (อส. 11 นาย)
-        const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy2lG8ofA8kMAivMMWW1BPoczPTs0Q/exec";
+        const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy21G8ofA8kMAivMMWW1BPoczPTs0Q/exec";
         window.onload = function() {
             initMap();
             renderStrategicMarkers();
@@ -879,11 +882,18 @@ jobs:
             renderTambonSummaryBars();
             fetchAllWeather();
 
-            // แสดงหมุด 11-Bel ตั้งต้นไว้ก่อนไม่ให้หมุดหาย แล้วดึงข้อมูลจริงจาก Google Sheets มาทับทุก 10 วินาที
-            updatePersonnelMarkerOnMap(18.848664, 99.045397, "11-Bel", "รอซิงค์ข้อมูล...", "--", "ปฏิบัติงาน (OwnTracks)");
-            loadPersonnelLocations();
-            setInterval(loadPersonnelLocations, 10000);
+            // อัปเดตหน้าตาปุ่มเข้าเวร/ออกเวรตอนเปิดเว็บ
+            updateTrackingButtonUI();
 
+            // ดึงข้อมูลเฉพาะเมื่ออยู่ในสถานะ "เข้าเวร (เปิดแสดงหมุด)" เท่านั้น (เอาหมุด 11-Bel ที่ค้างไว้ออกแล้ว)
+            if (isTrackingVisible) {
+                loadPersonnelLocations();
+            }
+            setInterval(() => {
+                if (isTrackingVisible) {
+                    loadPersonnelLocations();
+                }
+            }, 10000);
             // บังคับให้แผนที่เรนเดอร์ขนาดให้พอดีหน้าจอทันที (แก้ปัญหาหน้าจอดำ)
             setTimeout(() => {
                 if (map) map.invalidateSize();
@@ -895,7 +905,53 @@ jobs:
                 document.getElementById("gistdaApiKeyInput").value = savedKey;
             }
         };
+// ฟังก์ชันสำหรับกดปุ่ม สลับสถานะ เข้าเวร (แสดงหมุด) / ออกเวร (ซ่อนหมุดทันที)
+function togglePersonnelTracking() {
+            isTrackingVisible = !isTrackingVisible;
+            localStorage.setItem("HIDE_PERSONNEL_PIN", !isTrackingVisible);
+            updateTrackingButtonUI();
 
+            if (!isTrackingVisible) {
+                // ถ้าน้องกดปิด (ออกเวร) -> ล้างหมุดทุกคนออกจากแผนที่และตัวแปรทั้งหมดทันที
+                if (typeof layerPersonnel !== "undefined" && layerPersonnel) {
+                    layerPersonnel.clearLayers();
+                }
+                if (typeof personnelMarkers !== "undefined" && personnelMarkers) {
+                    Object.keys(personnelMarkers).forEach(k => {
+                        if (map && personnelMarkers[k]) map.removeLayer(personnelMarkers[k]);
+                    });
+                    personnelMarkers = {};
+                }
+                if (personnelMarker && map) {
+                    map.removeLayer(personnelMarker);
+                    personnelMarker = null;
+                }
+            } else {
+                // ถ้าน้องกดเปิด (เข้าเวร) -> ดึงพิกัดกลับมาแสดงทันที
+                loadPersonnelLocations();
+            }
+        }
+
+        // ฟังก์ชันสร้างและอัปเดตปุ่มบนหน้าจออัตโนมัติ (ไม่ต้องไปแก้ HTML เพิ่ม)
+        function updateTrackingButtonUI() {
+            let btn = document.getElementById("btnToggleTracking");
+            if (!btn) {
+                btn = document.createElement("button");
+                btn.id = "btnToggleTracking";
+                btn.onclick = togglePersonnelTracking;
+                btn.style.cssText = "position: fixed; bottom: 20px; left: 20px; z-index: 9999; padding: 10px 16px; border: 2px solid #ffffff; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.4); font-family: inherit; transition: 0.2s;";
+                document.body.appendChild(btn);
+            }
+            if (isTrackingVisible) {
+                btn.innerHTML = "🟢 สถานะ อส.: กำลังเข้าเวร (คลิกเพื่อซ่อนหมุด/ออกเวร)";
+                btn.style.backgroundColor = "#16a34a"; // สีเขียว
+                btn.style.color = "#ffffff";
+            } else {
+                btn.innerHTML = "🔴 สถานะ อส.: ออกเวร / ซ่อนหมุดแล้ว (คลิกเมื่อเริ่มเข้าเวร)";
+                btn.style.backgroundColor = "#dc2626"; // สีแดง
+                btn.style.color = "#ffffff";
+            }
+        }
         window.addEventListener('resize', () => {
             if (map) map.invalidateSize();
         });
@@ -1006,7 +1062,7 @@ jobs:
                     <div class="text-[11px] text-slate-400"><b>อัปเดต:</b> ${timeStr || 'ล่าสุด'}</div>
                 </div>
             `;
-
+if (!isTrackingVisible) return;
             if (personnelMarkers[name]) {
                 personnelMarkers[name].setLatLng([lat, lng]);
                 personnelMarkers[name].setIcon(personIcon);
@@ -1022,6 +1078,7 @@ jobs:
         }
 
        async function loadPersonnelLocations() {
+     if (!isTrackingVisible) return;      
             const defaultUrl = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy2lG8ofA8kMAivMMWW1BPoczPTs0Q/exec";
             const urlToFetch = (typeof GAS_WEBAPP_URL !== 'undefined' && GAS_WEBAPP_URL && GAS_WEBAPP_URL.startsWith("http")) ? GAS_WEBAPP_URL : defaultUrl;
 
