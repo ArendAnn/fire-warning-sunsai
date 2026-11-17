@@ -109,7 +109,7 @@
             <div>
                 <div class="flex items-center gap-2">
                     <h1 class="text-base md:text-lg font-bold tracking-wide text-white">ศูนย์ปฏิบัติการเฝ้าระวังและควบคุมไฟป่า อำเภอสันทราย</h1>
-                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">ไฟป่า 2570 • v2.6</span>
+                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">ไฟป่า 2570 • v2.7</span>
                 </div>
                 <p class="text-xs text-slate-400">กองร้อยอาสารักษาดินแดนอำเภอสันทราย ที่ 15 • ระบบแผนที่ยุทธวิธี & ดาวเทียม NOAA (VIIRS)</p>
             </div>
@@ -537,7 +537,7 @@
                     </div>
                     <div>
                         <h3 class="text-sm font-bold text-white">ตั้งค่าความเป็นส่วนตัว & สถานะเข้าเวร/ออกเวร (อส. 11 นาย)</h3>
-                        <p class="text-[11px] text-slate-400">ล็อกสิทธิ์ด้วยรหัส PIN 4 หลักประจำตัว เปลี่ยนสถานะได้เฉพาะชื่อของตนเอง</p>
+                        <p class="text-[11px] text-slate-400">ล็อกสิทธิ์ด้วยรหัส PIN 4 หลักประจำตัว เปลี่ยนสถานะและตั้งรหัสใหม่ได้เฉพาะชื่อของตนเอง</p>
                     </div>
                 </div>
                 <button onclick="closeModal('privacyModal')" class="text-slate-400 hover:text-white">
@@ -548,11 +548,12 @@
             <div class="overflow-y-auto space-y-3 pr-1 text-xs">
                 <div class="p-3 rounded-xl bg-blue-950/50 border border-blue-500/30 text-slate-200 space-y-1.5 leading-relaxed">
                     <div class="font-bold text-sky-400 flex items-center gap-1.5">
-                        <i class="fa-solid fa-mobile-screen-button"></i> วิธีใช้งานระบบเข้าเวร/ออกเวร
+                        <i class="fa-solid fa-mobile-screen-button"></i> วิธีใช้งานระบบเข้าเวร/ออกเวร & ตั้งรหัส PIN
                     </div>
                     <p class="text-[11px] text-slate-300">
                         1. เลือกชื่อตัวเองจากแถบด้านล่างของแผนที่ แล้วกดปุ่มสีเขียว/สีแดง พร้อมกรอกรหัส PIN 4 หลักประจำตัวครั้งแรก<br>
-                        2. เมื่อออกเวร ให้แตะไอคอนโหมดมุมขวาบนในแอป OwnTracks แล้วเปลี่ยนเป็นโหมด <b class="text-amber-300">Quiet (หยุดส่งพิกัด)</b> ด้วย
+                        2. หากต้องการเปลี่ยนรหัส PIN ใหม่ด้วยตัวเอง ให้กดปุ่ม <b class="text-amber-300">🔑 เปลี่ยน PIN</b> ที่แถบด้านล่าง<br>
+                        3. เมื่อออกเวร ให้แตะไอคอนโหมดมุมขวาบนในแอป OwnTracks แล้วเปลี่ยนเป็นโหมด <b class="text-amber-300">Quiet (หยุดส่งพิกัด)</b> ด้วย
                     </p>
                 </div>
 
@@ -823,7 +824,7 @@
             "11": "11-Bel"
         };
 
-        // รหัส PIN 4 หลักประจำตัว อส. (ป้องกันคนอื่นกดเข้าเวร/ออกเวรแทน)
+        // รหัส PIN 4 หลักเริ่มต้นประจำตัว อส. (ป้องกันคนอื่นกดเข้าเวร/ออกเวรแทน)
         const PERSONNEL_PINS = {
             "01-Jaguar": "1101",
             "02-Art-Drone": "1102",
@@ -915,7 +916,7 @@
         }
 
         // ============================================================================
-        // 4.2 สร้างแถบปุ่มเลือกชื่อ อส. และกดสลับ 🟢 เข้าเวร / 🔴 ออกเวร (ล็อกสิทธิ์ PIN 4 หลัก)
+        // 4.2 สร้างแถบปุ่มเลือกชื่อ อส. และกดสลับ 🟢 เข้าเวร / 🔴 ออกเวร + 🔑 เปลี่ยน PIN
         // ============================================================================
         function createPersonnelDutyBarUI() {
             if (!map) return;
@@ -923,7 +924,7 @@
                 options: { position: 'bottomleft' },
                 onAdd: function() {
                     const container = L.DomUtil.create('div', 'leaflet-bar');
-                    container.style.cssText = "background: rgba(15, 23, 42, 0.95); border: 1px solid #475569; border-radius: 12px; padding: 8px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); backdrop-filter: blur(8px); pointer-events: auto; margin-bottom: 6px;";
+                    container.style.cssText = "background: rgba(15, 23, 42, 0.95); border: 1px solid #475569; border-radius: 12px; padding: 8px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); backdrop-filter: blur(8px); pointer-events: auto; margin-bottom: 6px;";
 
                     let optionsHtml = "";
                     Object.values(PERSONNEL_ROSTER).forEach(name => {
@@ -939,8 +940,11 @@
                                 ${optionsHtml}
                             </select>
                         </div>
-                        <button id="btnToggleMyDuty" onclick="toggleMyDutyStatus()" style="padding: 7px 14px; border: 2px solid #ffffff; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; transition: 0.2s; color: #ffffff; background-color: #16a34a;">
-                            🟢 สถานะ: กำลังเข้าเวร (คลิกเพื่อซ่อนหมุด/ออกเวร)
+                        <button id="btnToggleMyDuty" onclick="toggleMyDutyStatus()" style="padding: 7px 12px; border: 2px solid #ffffff; border-radius: 8px; font-weight: 700; font-size: 12px; cursor: pointer; transition: 0.2s; color: #ffffff; background-color: #16a34a;">
+                            🟢 สถานะ: กำลังเข้าเวร
+                        </button>
+                        <button onclick="changeMyPinCode()" style="padding: 7px 10px; border: 1px solid #64748b; border-radius: 8px; font-weight: 600; font-size: 11px; cursor: pointer; color: #cbd5e1; background-color: #1e293b;" title="เปลี่ยนรหัส PIN ของฉัน">
+                            🔑 เปลี่ยน PIN
                         </button>
                     `;
                     L.DomEvent.disableClickPropagation(container);
@@ -1005,6 +1009,38 @@
             });
         }
 
+        // ดึงรหัส PIN (ถ้าเคยเปลี่ยนเองในเครื่องจะใช้รหัสใหม่ ถ้ายังไม่เคยเปลี่ยนจะใช้รหัสเริ่มต้น)
+        function getEffectivePin(person) {
+            const customPins = JSON.parse(localStorage.getItem("CUSTOM_OS_PINS") || "{}");
+            return customPins[person] || PERSONNEL_PINS[person] || "1234";
+        }
+
+        // ฟังก์ชันให้น้อง อส. กดเปลี่ยนรหัส PIN 4 หลักด้วยตัวเอง
+        function changeMyPinCode() {
+            const person = mySelectedIdentity;
+            const currentPin = getEffectivePin(person);
+
+            const oldInput = prompt(`🔐 เปลี่ยนรหัส PIN ของ ${person}\nกรุณากรอกรหัส PIN เดิม (4 หลัก):`);
+            if (oldInput === null) return;
+            if (oldInput.trim() !== currentPin) {
+                alert("❌ รหัส PIN เดิมไม่ถูกต้อง ไม่สามารถเปลี่ยนรหัสได้ครับ");
+                return;
+            }
+
+            const newPin = prompt(`🆕 กรุณาตั้งรหัส PIN ใหม่ (ตัวเลข 4 หลัก) สำหรับ ${person}:`);
+            if (newPin === null) return;
+            if (!/^\d{4}$/.test(newPin.trim())) {
+                alert("⚠️ กรุณากรอกเป็นตัวเลข 4 หลักเท่านั้นครับ (เช่น 2570)");
+                return;
+            }
+
+            const customPins = JSON.parse(localStorage.getItem("CUSTOM_OS_PINS") || "{}");
+            customPins[person] = newPin.trim();
+            localStorage.setItem("CUSTOM_OS_PINS", JSON.stringify(customPins));
+            localStorage.removeItem(`PIN_VERIFIED_${person}`);
+            alert(`✅ เปลี่ยนรหัส PIN ของ ${person} เรียบร้อยแล้วครับ!`);
+        }
+
         function toggleMyDutyStatus(targetPersonName) {
             const person = targetPersonName || mySelectedIdentity;
 
@@ -1015,7 +1051,7 @@
 
             const verifiedKey = `PIN_VERIFIED_${person}`;
             if (localStorage.getItem(verifiedKey) !== "true") {
-                const expectedPin = PERSONNEL_PINS[person] || "1234";
+                const expectedPin = getEffectivePin(person);
                 const inputPin = prompt(`🔐 กรุณากรอกรหัส PIN 4 หลัก ของ ${person} เพื่อยืนยันตัวตน:`);
                 if (inputPin === null) return;
                 if (inputPin.trim() !== expectedPin) {
