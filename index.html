@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ไฟป่า 2570 - ระบบเฝ้าระวังและยุทธวิธีดับไฟป่า อ.สันทราย จ.เชียงใหม่</title>
-<link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#ea580c">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/785/785116.png">    
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/785/785116.png">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -43,7 +43,6 @@
             color: #f8fafc;
             overflow-x: hidden;
         }
-        /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -58,7 +57,6 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #64748b;
         }
-        /* Leaflet Popup Custom Styling */
         .leaflet-popup-content-wrapper {
             background: rgba(15, 23, 42, 0.95) !important;
             color: #f8fafc !important;
@@ -119,7 +117,6 @@
 
         <!-- Quick Status Indicators -->
         <div class="flex items-center flex-wrap gap-2 md:gap-4">
-            <!-- Real-time Weather Summary Pill -->
             <div id="topWeatherPill" class="flex items-center gap-3 bg-slate-800/90 border border-slate-700/80 px-3 py-1.5 rounded-xl text-xs">
                 <div class="flex items-center gap-1.5 text-amber-400">
                     <i class="fa-solid fa-temperature-half"></i>
@@ -137,19 +134,16 @@
                 </div>
             </div>
 
-            <!-- Simulate Hotspot Button -->
             <button id="btnToggleSimMode" onclick="toggleSimMode()" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition flex items-center gap-1.5 shadow-sm">
                 <i class="fa-solid fa-crosshairs"></i>
                 <span id="simModeText">โหมดจำลองจุดไฟใหม่: ปิด</span>
             </button>
 
-            <!-- GISTDA API Modal Button -->
             <button onclick="openModal('gistdaModal')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition flex items-center gap-1.5 shadow-md shadow-blue-600/20">
                 <i class="fa-solid fa-satellite"></i>
                 <span>เชื่อมต่อ GISTDA API</span>
             </button>
 
-            <!-- Python Script Guide Button -->
             <button onclick="openModal('scriptModal')" class="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
                 <i class="fa-brands fa-github"></i>
                 <span class="hidden sm:inline">สคริปต์รันอัตโนมัติ</span>
@@ -160,7 +154,7 @@
     <!-- Main Content Layout -->
     <div class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
         
-        <!-- Left Sidebar: Controls, Filters & Analytics -->
+        <!-- Left Sidebar -->
         <aside class="w-full lg:w-96 bg-slate-900 border-r border-slate-800 flex flex-col h-72 lg:h-full z-20 shrink-0">
             
             <!-- Sidebar Tabs -->
@@ -188,7 +182,6 @@
 
                 <!-- TAB 1: LAYERS & FILTERS -->
                 <div id="tab-layers" class="space-y-4">
-                    <!-- KPI Summary Cards -->
                     <div class="grid grid-cols-2 gap-2.5">
                         <div class="bg-slate-800/70 border border-slate-700/70 rounded-xl p-3">
                             <div class="flex items-center justify-between text-xs text-slate-400">
@@ -208,7 +201,6 @@
                         </div>
                     </div>
 
-                    <!-- Map Style Switcher -->
                     <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
                         <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
                             <i class="fa-solid fa-globe text-sky-400"></i> รูปแบบแผนที่พื้นหลัง
@@ -226,13 +218,11 @@
                         </div>
                     </div>
 
-                    <!-- Layer Visibility Toggles -->
                     <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 space-y-2.5">
                         <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                             <i class="fa-solid fa-eye text-emerald-400"></i> เปิด/ปิด ชั้นข้อมูลบนแผนที่
                         </h3>
 
-                        <!-- ชั้นข้อมูลพิกัดกำลังพล (อส. 11 นาย) + ตั้งค่าความเป็นส่วนตัวรายบุคคล -->
                         <div class="p-2.5 rounded-lg bg-slate-900/90 border border-blue-500/40 space-y-2">
                             <label class="flex items-center justify-between cursor-pointer">
                                 <div class="flex items-center gap-2.5">
@@ -247,7 +237,6 @@
                                     <i class="fa-solid fa-location-crosshairs"></i> ซูมหาหมุด
                                 </button>
                             </div>
-                            <!-- ปุ่มเปิดหน้าต่างจัดการความเป็นส่วนตัวรายบุคคล -->
                             <div class="pl-6 pt-1 flex flex-wrap gap-1.5">
                                 <button type="button" onclick="openPrivacyModal()" class="w-full py-1.5 px-2.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition">
                                     <i class="fa-solid fa-user-lock"></i> ตั้งค่าความเป็นส่วนตัว / ซ่อนหมุดรายคน (ออกเวร)
@@ -296,7 +285,6 @@
                         </label>
                     </div>
 
-                    <!-- Filters for 128 Hotspots -->
                     <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3 space-y-3">
                         <div class="flex items-center justify-between">
                             <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
@@ -305,7 +293,6 @@
                             <button onclick="resetFilters()" class="text-[11px] text-sky-400 hover:underline">ล้างตัวกรอง</button>
                         </div>
 
-                        <!-- Filter by Month -->
                         <div>
                             <label class="text-[11px] text-slate-400 block mb-1">แยกตามเดือน (ปี 2026)</label>
                             <select id="filterMonth" onchange="applyHotspotFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
@@ -317,7 +304,6 @@
                             </select>
                         </div>
 
-                        <!-- Filter by Tambon -->
                         <div>
                             <label class="text-[11px] text-slate-400 block mb-1">แยกตามตำบล (อ.สันทราย)</label>
                             <select id="filterTambon" onchange="applyHotspotFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
@@ -331,7 +317,6 @@
                             </select>
                         </div>
 
-                        <!-- Filter by Land Area -->
                         <div>
                             <label class="text-[11px] text-slate-400 block mb-1">พื้นที่รับผิดชอบ</label>
                             <select id="filterAreaType" onchange="applyHotspotFilters()" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-orange-500">
@@ -345,7 +330,7 @@
                     </div>
                 </div>
 
-                <!-- TAB 2: STRATEGIC POINTS & ROUTES -->
+                <!-- TAB 2: STRATEGIC POINTS -->
                 <div id="tab-tactical" class="hidden space-y-3">
                     <div class="flex items-center gap-2">
                         <div class="relative flex-1">
@@ -354,7 +339,6 @@
                         </div>
                     </div>
 
-                    <!-- Category Filter Pills -->
                     <div class="flex gap-1.5 overflow-x-auto pb-1 text-[11px]">
                         <button onclick="setStrategicCat('ALL')" id="scat-ALL" class="px-2.5 py-1 rounded-full bg-orange-500 text-white font-medium shrink-0">ทั้งหมด (27)</button>
                         <button onclick="setStrategicCat('ยุทธวิธีดับไฟ')" id="scat-ยุทธวิธีดับไฟ" class="px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 hover:bg-slate-700 shrink-0">ยุทธวิธี/เสี่ยงสูง (5)</button>
@@ -367,7 +351,6 @@
 
                 <!-- TAB 3: 128 HISTORICAL HOTSPOTS -->
                 <div id="tab-hotspots" class="hidden space-y-3">
-                    <!-- Tambon Breakdown Bars -->
                     <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-3">
                         <h4 class="text-xs font-semibold text-slate-200 mb-2">สรุปจุดความร้อนรายตำบล (128 จุด)</h4>
                         <div id="tambonStatsBars" class="space-y-1.5 text-xs"></div>
@@ -381,7 +364,7 @@
                     <div id="hotspotListContainer" class="space-y-2 max-h-96 overflow-y-auto pr-1"></div>
                 </div>
 
-                <!-- TAB 4: REAL-TIME WIND & 3-HOUR FORECAST -->
+                <!-- TAB 4: REAL-TIME WIND -->
                 <div id="tab-weather" class="hidden space-y-3">
                     <div class="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-xl p-3.5">
                         <div class="flex items-center justify-between mb-2">
@@ -401,7 +384,6 @@
                         </div>
                     </div>
 
-                    <!-- 3-Hour Interval Forecast Table -->
                     <div class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
                         <h4 class="text-xs font-semibold text-slate-200 mb-2 flex items-center gap-1.5">
                             <i class="fa-regular fa-clock text-amber-400"></i> พยากรณ์ลมล่วงหน้าทุก 3 ชั่วโมง (โซนแม่แฝก/ป่าไผ่)
@@ -425,7 +407,7 @@
 
             </div>
 
-            <!-- Sidebar Footer: Tactical Analysis Box -->
+            <!-- Sidebar Footer -->
             <div id="tacticalAlertBox" class="p-3 bg-slate-950 border-t border-slate-800 text-xs">
                 <div class="flex items-center justify-between text-slate-400 mb-1">
                     <span class="font-semibold text-amber-400 flex items-center gap-1.5">
@@ -445,7 +427,7 @@
         <main class="flex-1 relative h-full">
             <div id="map" class="w-full h-full z-10"></div>
 
-           <!-- Floating Map Legend (Bottom Right) -->
+            <!-- Floating Map Legend -->
             <div class="absolute bottom-5 right-4 z-20 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 rounded-xl p-3 shadow-xl max-w-xs text-[11px] space-y-1.5">
                 <div class="font-bold text-slate-200 flex items-center justify-between mb-1">
                     <span>สัญลักษณ์แผนที่ (ไฟป่า 2570)</span>
@@ -555,7 +537,7 @@
                     </div>
                     <div>
                         <h3 class="text-sm font-bold text-white">ตั้งค่าความเป็นส่วนตัว & สถานะเข้าเวร/ออกเวร (อส. 11 นาย)</h3>
-                        <p class="text-[11px] text-slate-400">เลือกเปิด/ปิดการแสดงหมุดรายบุคคล หรือดูวิธีปิดส่งพิกัดจากแอป OwnTracks</p>
+                        <p class="text-[11px] text-slate-400">ล็อกสิทธิ์ด้วยรหัส PIN 4 หลักประจำตัว เปลี่ยนสถานะได้เฉพาะชื่อของตนเอง</p>
                     </div>
                 </div>
                 <button onclick="closeModal('privacyModal')" class="text-slate-400 hover:text-white">
@@ -564,30 +546,26 @@
             </div>
 
             <div class="overflow-y-auto space-y-3 pr-1 text-xs">
-                <!-- คำแนะนำการปิดจากแอป OwnTracks บนมือถือ -->
                 <div class="p-3 rounded-xl bg-blue-950/50 border border-blue-500/30 text-slate-200 space-y-1.5 leading-relaxed">
                     <div class="font-bold text-sky-400 flex items-center gap-1.5">
-                        <i class="fa-solid fa-mobile-screen-button"></i> วิธีที่ 1: ปิดพิกัดด้วยตัวเองจากแอป OwnTracks บนมือถือ
+                        <i class="fa-solid fa-mobile-screen-button"></i> วิธีใช้งานระบบเข้าเวร/ออกเวร
                     </div>
                     <p class="text-[11px] text-slate-300">
-                        1. เมื่อออกเวร ให้แตะไอคอนโหมดมุมขวาบนในแอป OwnTracks แล้วเปลี่ยนเป็นโหมด <b class="text-amber-300">Quiet (รูปป้ายห้าม/หยุดส่ง)</b> หรือปิด GPS<br>
-                        2. หรือเลือกชื่อตัวเองจากแถบด้านล่างของแผนที่ แล้วกดปุ่มสีเขียว/สีแดงเพื่อสลับสถานะเข้าเวร/ออกเวรได้ทันที
+                        1. เลือกชื่อตัวเองจากแถบด้านล่างของแผนที่ แล้วกดปุ่มสีเขียว/สีแดง พร้อมกรอกรหัส PIN 4 หลักประจำตัวครั้งแรก<br>
+                        2. เมื่อออกเวร ให้แตะไอคอนโหมดมุมขวาบนในแอป OwnTracks แล้วเปลี่ยนเป็นโหมด <b class="text-amber-300">Quiet (หยุดส่งพิกัด)</b> ด้วย
                     </p>
                 </div>
 
-                <!-- รายชื่อสวิตช์เปิด-ปิดรายบุคคลบนแผนที่ทันที -->
                 <div class="space-y-2">
                     <div class="flex items-center justify-between">
-                        <span class="font-bold text-amber-300">วิธีที่ 2: กดซ่อน/แสดงหมุดรายบุคคลทันทีบนหน้าจอนี้</span>
+                        <span class="font-bold text-amber-300">สถานะกำลังพลทั้งหมด (กดเปลี่ยนได้เฉพาะชื่อของคุณ):</span>
                     </div>
-                    <div id="individualPrivacyList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                        <!-- สร้างรายการ อส. ทั้ง 11 นายอัตโนมัติด้วย JS -->
-                    </div>
+                    <div id="individualPrivacyList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1"></div>
                 </div>
             </div>
 
             <div class="flex items-center justify-between pt-2 border-t border-slate-800">
-                <span class="text-[11px] text-slate-400">* การกดซ่อนรายคนจะมีผลทันทีทุกเครื่อง</span>
+                <span class="text-[11px] text-slate-400">* ป้องกันผู้อื่นกดเข้าเวร/ออกเวรแทนด้วย PIN 4 หลัก</span>
                 <button onclick="closeModal('privacyModal')" class="px-4 py-2 rounded-xl text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white">ปิดหน้าต่าง</button>
             </div>
         </div>
@@ -595,7 +573,7 @@
 
   <script>
         // ============================================================================
-        // 1. ข้อมูลจุดยุทธศาสตร์และจุดเฝ้าระวัง 27 จุด จากไฟล์ KML "ไฟป่า 2570.kml"
+        // 1. ข้อมูลจุดยุทธศาสตร์และจุดเฝ้าระวัง 27 จุด
         // ============================================================================
         const strategicPoints = [
             { id: "SP01", name: "กองร้อยอาสารักษาดินแดนอำเภอสันทราย ที่ 15", lat: 18.8486175, lng: 99.0453617, alt: 0, cat: "ฐานปฏิบัติการ", note: "ศูนย์บัญชาการและกำลังพลหลัก อส.อ.สันทราย" },
@@ -628,7 +606,7 @@
         ];
 
         // ============================================================================
-        // 2. ข้อมูลเส้นทางเข้าถึงพื้นที่ / แนวกันไฟ 20 เส้นทาง จากไฟล์ KML
+        // 2. ข้อมูลเส้นทางเข้าถึงพื้นที่ / แนวกันไฟ 20 เส้นทาง
         // ============================================================================
         const kmlRoutes = [
             { id: "R01", name: "เส้นทางยุทธวิธี สายที่ 1 (โซนเหนือเชื่อมต่อกะลามะพร้าว)", color: "#38bdf8", coords: [[18.9445446,99.0709065],[18.9445013,99.0790919],[18.9350140,99.0795967]] },
@@ -654,7 +632,7 @@
         ];
 
         // ============================================================================
-        // 3. ข้อมูลจุดความร้อนย้อนหลัง 128 จุด (ครบถ้วนจากไฟล์ KML ไฟป่า 2570)
+        // 3. ข้อมูลจุดความร้อนย้อนหลัง 128 จุด
         // ============================================================================
         const rawHotspots128 = [
             [1,"2026-02-16","1335","สันทรายน้อย","ชุมชนและอื่น ๆ","อื่น ๆ",18.823178,99.032403,"503414, 2081263"],
@@ -827,25 +805,39 @@
         let personnelMarker = null;
         let personnelMarkers = {};
 
-        // URL ของ Google Apps Script สำหรับดึงพิกัดและบันทึกสถานะเข้าเวร/ออกเวรกลาง (ตัวแอลเล็ก 2lG8)
+        // URL ของ Google Apps Script สำหรับดึงพิกัดและบันทึกสถานะเข้าเวร/ออกเวรกลาง
         const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy2lG8ofA8kMAivMMWW1BPoczPTs0Q/exec";
 
-// รหัส PIN 4 หลักประจำตัว อส. (ป้องกันคนอื่นกดเข้าเวร/ออกเวรแทน)
-    const PERSONNEL_PINS = {
-        "01-Jaguar": "1101",
-        "02-Art-Drone": "1102",
-        "03-May": "1103",
-        "04-Flukky": "1104",
-        "05-Champ": "1105",
-        "06-Arm": "1106",
-        "07-Ken": "1107",
-        "08-Nest": "1108",
-        "09-Aosy": "1109",
-        "10-Sorn": "1110",
-        "11-Bel": "1111"
-    };
+        // รายชื่อ อส. ทั้ง 11 นาย
+        const PERSONNEL_ROSTER = {
+            "01": "01-Jaguar",
+            "02": "02-Art-Drone",
+            "03": "03-May",
+            "04": "04-Flukky",
+            "05": "05-Champ",
+            "06": "06-Arm",
+            "07": "07-Ken",
+            "08": "08-Nest",
+            "09": "09-Aosy",
+            "10": "10-Sorn",
+            "11": "11-Bel"
+        };
 
-        // จำชื่อ อส. ประจำเครื่องมือถือ และสถานะการซ่อนหมุดจากเซิร์ฟเวอร์กลาง
+        // รหัส PIN 4 หลักประจำตัว อส. (ป้องกันคนอื่นกดเข้าเวร/ออกเวรแทน)
+        const PERSONNEL_PINS = {
+            "01-Jaguar": "1101",
+            "02-Art-Drone": "1102",
+            "03-May": "1103",
+            "04-Flukky": "1104",
+            "05-Champ": "1105",
+            "06-Arm": "1106",
+            "07-Ken": "1107",
+            "08-Nest": "1108",
+            "09-Aosy": "1109",
+            "10-Sorn": "1110",
+            "11-Bel": "1111"
+        };
+
         let mySelectedIdentity = localStorage.getItem("MY_OS_IDENTITY") || "11-Bel";
         let serverHiddenMap = JSON.parse(localStorage.getItem("SERVER_HIDDEN_MAP") || "{}");
 
@@ -874,7 +866,7 @@
         };
 
         // ============================================================================
-        // 4.1 สร้างหน้าปัดเข็มทิศยุทธวิธีและทิศทางลม (แสดงบนแผนที่ 100% ด้วย Leaflet Control)
+        // 4.1 สร้างหน้าปัดเข็มทิศยุทธวิธีและทิศทางลม
         // ============================================================================
         function createFloatingCompassWidget() {
             if (!map) return;
@@ -923,7 +915,7 @@
         }
 
         // ============================================================================
-        // 4.2 สร้างแถบปุ่มเลือกชื่อ อส. และกดสลับ 🟢 เข้าเวร / 🔴 ออกเวร (ซิงค์ทุกเครื่อง 100%)
+        // 4.2 สร้างแถบปุ่มเลือกชื่อ อส. และกดสลับ 🟢 เข้าเวร / 🔴 ออกเวร (ล็อกสิทธิ์ PIN 4 หลัก)
         // ============================================================================
         function createPersonnelDutyBarUI() {
             if (!map) return;
@@ -1013,22 +1005,19 @@
             });
         }
 
-        // เมื่อน้อง อส. กดปุ่ม สีเขียว/สีแดง จะตรวจสอบสิทธิ์และรหัส PIN ก่อนส่งคำสั่งเสมอ
         function toggleMyDutyStatus(targetPersonName) {
             const person = targetPersonName || mySelectedIdentity;
 
-            // 1. ป้องกันการกดแทนชื่อคนอื่นที่ไม่ได้เลือกเป็นตัวตนของเครื่องนี้
             if (person !== mySelectedIdentity) {
                 alert(`⚠️ คุณกำลังใช้งานในชื่อ "${mySelectedIdentity}"\nไม่สามารถเปลี่ยนสถานะเข้าเวร/ออกเวรของ "${person}" ได้ครับ`);
                 return;
             }
 
-            // 2. ตรวจสอบรหัส PIN 4 หลักประจำตัว (จำสิทธิ์ไว้ในเครื่องนั้นหลังยืนยันครั้งแรก)
             const verifiedKey = `PIN_VERIFIED_${person}`;
             if (localStorage.getItem(verifiedKey) !== "true") {
                 const expectedPin = PERSONNEL_PINS[person] || "1234";
                 const inputPin = prompt(`🔐 กรุณากรอกรหัส PIN 4 หลัก ของ ${person} เพื่อยืนยันตัวตน:`);
-                if (inputPin === null) return; // กดยกเลิก
+                if (inputPin === null) return;
                 if (inputPin.trim() !== expectedPin) {
                     alert("❌ รหัส PIN ไม่ถูกต้อง ไม่สามารถเปลี่ยนสถานะได้ครับ");
                     return;
@@ -1467,7 +1456,7 @@
         }
 
         // ============================================================================
-        // 7. แสดงรายการในแถบด้านข้าง (Sidebar Lists)
+        // 7. แสดงรายการในแถบด้านข้าง
         // ============================================================================
         function setStrategicCat(cat) {
             selectedStrategicCat = cat;
@@ -1693,7 +1682,7 @@
         }
 
         // ============================================================================
-        // 9. ระบบจำลองจุดเกิดไฟใหม่ + คำนวณระยะห่างยุทธวิธี + วาดกรวยไฟลามตามลม
+        // 9. ระบบจำลองจุดเกิดไฟใหม่
         // ============================================================================
         function toggleSimMode() {
             simModeActive = !simModeActive;
@@ -1860,7 +1849,7 @@
         }
 
         // ============================================================================
-        // 11. ฟังก์ชันคำนวณทางภูมิศาสตร์ (Haversine Distance & Destination Point)
+        // 11. ฟังก์ชันคำนวณทางภูมิศาสตร์
         // ============================================================================
         function haversineKm(lat1, lon1, lat2, lon2) {
             const R = 6371;
