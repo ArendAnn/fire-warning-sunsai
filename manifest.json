@@ -1,0 +1,25 @@
+{
+  "name": "ศูนย์ปฏิบัติการไฟป่า อ.สันทราย",
+  "short_name": "ไฟป่า 2570",
+  "description": "ระบบแผนที่ยุทธวิธีและติดตามกำลังพล อส.อ.สันทราย ที่ 15",
+  "start_url": "/fire-warning-sunsai/",
+  "scope": "/fire-warning-sunsai/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#ea580c",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/785/785116.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/785/785116.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
