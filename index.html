@@ -977,37 +977,28 @@
         }
 
         // เมื่อน้อง อส. กดปุ่ม สีเขียว/สีแดง จะส่งคำสั่งไปล็อกที่ Google Apps Script ทันที
-        async function toggleMyDutyStatus(targetPersonName) {
+function toggleMyDutyStatus(targetPersonName) {
             const person = targetPersonName || mySelectedIdentity;
-            const currentlyHidden = serverHiddenMap[person] === true;
-            const nextHideState = !currentlyHidden;
+            const currentHidden = (serverHiddenMap[person] === true);
+            const nextHidden = !currentHidden;
 
-            // อัปเดตสถานะบนหน้าจอทันทีและลบหมุดออกจากแผนที่ทันทีถ้ากดซ่อน
-            serverHiddenMap[person] = nextHideState;
+            serverHiddenMap[person] = nextHidden;
             localStorage.setItem("SERVER_HIDDEN_MAP", JSON.stringify(serverHiddenMap));
             updateDutyButtonAppearance();
 
-            if (nextHideState && personnelMarkers[person]) {
+            if (nextHidden && personnelMarkers[person]) {
                 layerPersonnel.removeLayer(personnelMarkers[person]);
                 if (map) map.removeLayer(personnelMarkers[person]);
                 delete personnelMarkers[person];
             }
 
-            // ส่งคำสั่งไปบันทึกที่ Google Apps Script เพื่อให้หน้าจอของทุกคนซ่อนหมุดตรงกัน 100%
-            try {
-                const url = `${GAS_WEBAPP_URL}?action=set_privacy&person=${encodeURIComponent(person)}&hide=${nextHideState}&t=${Date.now()}`;
-                const res = await fetch(url, { redirect: "follow" });
-                const data = await res.json();
-                if (data && data.hidden_map) {
-                    serverHiddenMap = data.hidden_map;
-                    localStorage.setItem("SERVER_HIDDEN_MAP", JSON.stringify(serverHiddenMap));
-                    updateDutyButtonAppearance();
-                }
-                loadPersonnelLocations();
-            } catch (err) {
-                console.warn("ซิงค์สถานะเข้าเวร/ออกเวร:", err);
-                loadPersonnelLocations();
-            }
+            const oldToggle = document.getElementById("gasToggleScript");
+            if (oldToggle) oldToggle.remove();
+
+            const s = document.createElement("script");
+            s.id = "gasToggleScript";
+            s.src = `${GAS_WEBAPP_URL}?action=toggle_hide&name=${encodeURIComponent(person)}&hidden=${nextHidden}&callback=handleOwnTracksJsonpResponse&t=${Date.now()}`;
+            document.body.appendChild(s);
         }
 
         window.addEventListener('resize', () => {
