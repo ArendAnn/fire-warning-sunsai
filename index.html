@@ -1126,83 +1126,106 @@
             }
         }
 
-async function loadPersonnelLocations() {
+function handleOwnTracksJsonpResponse(data) {
             const statusEl = document.getElementById("personnelStatusText");
-            try {
-                const res = await fetch(GAS_WEBAPP_URL + "?t=" + Date.now(), { redirect: "follow" });
-                if (!res.ok) throw new Error("HTTP " + res.status);
-                const data = await res.json();
-
-                if (data && data.hidden_map) {
-                    serverHiddenMap = data.hidden_map;
-                    localStorage.setItem("SERVER_HIDDEN_MAP", JSON.stringify(serverHiddenMap));
-                    updateDutyButtonAppearance();
-                }
-
-                const records = Array.isArray(data) ? data : (data.records || data.data || []);
-                const latestByPerson = {};
-
-                records.forEach(row => {
-                    if (!row) return;
-                    let lat = parseFloat(row.lat ?? row.Lat ?? row.latitude);
-                    let lng = parseFloat(row.lng ?? row.lon ?? row.Lng ?? row.longitude);
-                    let rawName = row.name || row.Name || row.user || "";
-                    let rawTid = row.tid || "";
-                    let batt = (row.battery !== "" && row.battery !== undefined && row.battery !== null) ? row.battery : 100;
-                    let time = row.time || "ล่าสุด";
-                    let status = row.status || "ปฏิบัติงาน (OwnTracks)";
-                    let hiddenFlag = row.hidden === true;
-
-                    if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-                        const standardName = normalizePersonnelId(rawName, rawTid);
-                        latestByPerson[standardName] = {
-                            lat: lat,
-                            lng: lng,
-                            name: standardName,
-                            batt: batt,
-                            time: time,
-                            status: status,
-                            hidden: hiddenFlag || (serverHiddenMap[standardName] === true)
-                        };
-                    }
-                });
-
-                // ลบหมุดของคนที่กดปิดออนไลน์ (ออกเวร/ซ่อนหมุด) ออกจากแผนที่ทันที
-                Object.keys(personnelMarkers).forEach(existingName => {
-                    if (!latestByPerson[existingName] || latestByPerson[existingName].hidden || serverHiddenMap[existingName] === true) {
-                        layerPersonnel.removeLayer(personnelMarkers[existingName]);
-                        if (map) map.removeLayer(personnelMarkers[existingName]);
-                        delete personnelMarkers[existingName];
-                    }
-                });
-
-                const activeList = [];
-                Object.values(latestByPerson).forEach(p => {
-                    if (!p.hidden && serverHiddenMap[p.name] !== true) {
-                        activeList.push(p);
-                        updatePersonnelMarkerOnMap(p.lat, p.lng, p.name, p.time, p.batt, p.status);
-                        if (personnelMarkers[p.name]) {
-                            personnelMarkers[p.name].setZIndexOffset(5000);
-                        }
-                    }
-                });
-
-                // แสดงรายชื่อผู้ที่กำลังออนไลน์ในช่องใต้หัวข้อ "พิกัดกำลังพล & เฝ้าระวัง (อส. 11 นาย)"
+            if (!data || data.status === "error") {
                 if (statusEl) {
-                    if (activeList.length > 0) {
-                        const badges = activeList.map(p =>
-                            `<span onclick="focusOnePerson('${p.name}')" title="คลิกเพื่อซูมไปที่ ${p.name}" class="inline-block px-2 py-0.5 mr-1 mb-1 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold cursor-pointer hover:bg-emerald-500/40 transition">🟢 ${p.name} (${p.batt}%)</span>`
-                        ).join("");
-                        statusEl.innerHTML = `<div class="mt-1.5 leading-normal"><span class="text-slate-300 font-semibold">กำลังออนไลน์ ${activeList.length} นาย (คลิกชื่อเพื่อซูม):</span><div class="mt-1">${badges}</div></div>`;
-                    } else {
-                        statusEl.innerHTML = `<span class="text-amber-400">• ยังไม่มีเจ้าหน้าที่ออนไลน์ (ปิดแสดงพิกัด/ออกเวรทั้งหมด)</span>`;
+                    statusEl.innerHTML = `<span class="text-red-400">• ข้อผิดพลาดฝั่งเซิร์ฟเวอร์: ${data ? data.message : "ไม่ทราบสาเหตุ"}</span>`;
+                }
+                return;
+            }
+
+            if (data.hidden_map) {
+                serverHiddenMap = data.hidden_map;
+                localStorage.setItem("SERVER_HIDDEN_MAP", JSON.stringify(serverHiddenMap));
+                updateDutyButtonAppearance();
+            }
+
+            const records = Array.isArray(data) ? data : (data.records || data.data || []);
+            const latestByPerson = {};
+
+            records.forEach(row => {
+                if (!row) return;
+                let lat = parseFloat(row.lat ?? row.Lat ?? row.latitude);
+                let lng = parseFloat(row.lng ?? row.lon ?? row.Lng ?? row.longitude);
+                let rawName = row.name || row.Name || row.user || "";
+                let rawTid = row.tid || "";
+                let batt = (row.battery !== "" && row.battery !== undefined && row.battery !== null) ? row.battery : 100;
+                let time = row.time || "ล่าสุด";
+                let status = row.status || "ปฏิบัติงาน (OwnTracks)";
+                let hiddenFlag = row.hidden === true;
+
+                if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+                    const standardName = normalizePersonnelId(rawName, rawTid);
+                    latestByPerson[standardName] = {
+                        lat: lat,
+                        lng: lng,
+                        name: standardName,
+                        batt: batt,
+                        time: time,
+                        status: status,
+                        hidden: hiddenFlag || (serverHiddenMap[standardName] === true)
+                    };
+                }
+            });
+
+            Object.keys(personnelMarkers).forEach(existingName => {
+                if (!latestByPerson[existingName] || latestByPerson[existingName].hidden || serverHiddenMap[existingName] === true) {
+                    layerPersonnel.removeLayer(personnelMarkers[existingName]);
+                    if (map) map.removeLayer(personnelMarkers[existingName]);
+                    delete personnelMarkers[existingName];
+                }
+            });
+
+            const activeList = [];
+            Object.values(latestByPerson).forEach(p => {
+                if (!p.hidden && serverHiddenMap[p.name] !== true) {
+                    activeList.push(p);
+                    updatePersonnelMarkerOnMap(p.lat, p.lng, p.name, p.time, p.batt, p.status);
+                    if (personnelMarkers[p.name]) {
+                        personnelMarkers[p.name].setZIndexOffset(5000);
                     }
                 }
-            } catch (err) {
-                console.warn("OwnTracks fetch warning:", err);
-                if (statusEl) {
-                    statusEl.innerHTML = `<span class="text-red-400">• กำลังเชื่อมต่อข้อมูลกำลังพล...</span>`;
+            });
+
+            if (statusEl) {
+                if (activeList.length > 0) {
+                    const badges = activeList.map(p =>
+                        `<span onclick="focusOnePerson('${p.name}')" title="คลิกเพื่อซูมไปที่ ${p.name}" class="inline-block px-2 py-0.5 mr-1 mb-1 rounded-md bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-semibold cursor-pointer hover:bg-emerald-500/40 transition">🟢 ${p.name} (${p.batt}%)</span>`
+                    ).join("");
+                    statusEl.innerHTML = `<div class="mt-1.5 leading-normal"><span class="text-slate-300 font-semibold">กำลังออนไลน์ ${activeList.length} นาย (คลิกชื่อเพื่อซูม):</span><div class="mt-1">${badges}</div></div>`;
+                } else {
+                    statusEl.innerHTML = `<span class="text-amber-400">• ยังไม่มีเจ้าหน้าที่ออนไลน์ (ปิดแสดงพิกัด/ออกเวรทั้งหมด)</span>`;
                 }
+            }
+        }
+
+        function loadPersonnelLocations() {
+            const oldScript = document.getElementById("gasJsonpScript");
+            if (oldScript) oldScript.remove();
+
+            const script = document.createElement("script");
+            script.id = "gasJsonpScript";
+            script.src = `${GAS_WEBAPP_URL}?callback=handleOwnTracksJsonpResponse&t=${Date.now()}`;
+            script.onerror = function () {
+                const statusEl = document.getElementById("personnelStatusText");
+                if (statusEl) {
+                    statusEl.innerHTML = `<span class="text-red-400">• ไม่สามารถโหลดข้อมูลจาก Apps Script ได้</span>`;
+                }
+            };
+            document.body.appendChild(script);
+        }
+
+        function focusOnePerson(name) {
+            const chk = document.getElementById('chkPersonnel');
+            if (chk && !chk.checked) {
+                chk.checked = true;
+                updateLayers();
+            }
+            const m = personnelMarkers[name];
+            if (map && m) {
+                map.flyTo(m.getLatLng(), 16, { duration: 1.0 });
+                setTimeout(() => m.openPopup(), 1000);
             }
         }
 
