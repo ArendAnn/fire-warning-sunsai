@@ -830,19 +830,20 @@
         // URL ของ Google Apps Script สำหรับดึงพิกัดและบันทึกสถานะเข้าเวร/ออกเวรกลาง (ตัวแอลเล็ก 2lG8)
         const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy2lG8ofA8kMAivMMWW1BPoczPTs0Q/exec";
 
-        const PERSONNEL_ROSTER = {
-            "01": "01-Jaguar",
-            "02": "02-Art-Drone",
-            "03": "03-May",
-            "04": "04-Flukky",
-            "05": "05-Champ",
-            "06": "06-Arm",
-            "07": "07-Ken",
-            "08": "08-Nest",
-            "09": "09-Aosy",
-            "10": "10-Sorn",
-            "11": "11-Bel"
-        };
+// รหัส PIN 4 หลักประจำตัว อส. (ป้องกันคนอื่นกดเข้าเวร/ออกเวรแทน)
+    const PERSONNEL_PINS = {
+        "01-Jaguar": "1101",
+        "02-Art-Drone": "1102",
+        "03-May": "1103",
+        "04-Flukky": "1104",
+        "05-Champ": "1105",
+        "06-Arm": "1106",
+        "07-Ken": "1107",
+        "08-Nest": "1108",
+        "09-Aosy": "1109",
+        "10-Sorn": "1110",
+        "11-Bel": "1111"
+    };
 
         // จำชื่อ อส. ประจำเครื่องมือถือ และสถานะการซ่อนหมุดจากเซิร์ฟเวอร์กลาง
         let mySelectedIdentity = localStorage.getItem("MY_OS_IDENTITY") || "11-Bel";
@@ -989,21 +990,52 @@
             listEl.innerHTML = "";
             Object.values(PERSONNEL_ROSTER).forEach(name => {
                 const isHidden = serverHiddenMap[name] === true;
+                const isMe = (name === mySelectedIdentity);
                 const row = document.createElement("div");
-                row.className = "flex items-center justify-between p-2 rounded-lg bg-slate-800/80 border border-slate-700";
-                row.innerHTML = `
-                    <span class="font-semibold text-white text-xs">${name}</span>
-                    <button onclick="toggleMyDutyStatus('${name}')" class="px-2.5 py-1 rounded text-[11px] font-bold text-white transition ${!isHidden ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-red-600 hover:bg-red-500'}">
-                        ${!isHidden ? '🟢 เข้าเวร' : '🔴 ออกเวร'}
-                    </button>
-                `;
+                row.className = `flex items-center justify-between p-2 rounded-lg border ${isMe ? 'bg-slate-800 border-blue-500/60' : 'bg-slate-900/60 border-slate-800 opacity-75'}`;
+                
+                if (isMe) {
+                    row.innerHTML = `
+                        <span class="font-bold text-amber-300 text-xs">${name} (คุณ)</span>
+                        <button onclick="toggleMyDutyStatus('${name}')" class="px-2.5 py-1 rounded text-[11px] font-bold text-white transition ${!isHidden ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-red-600 hover:bg-red-500'}">
+                            ${!isHidden ? '🟢 เข้าเวร' : '🔴 ออกเวร'}
+                        </button>
+                    `;
+                } else {
+                    row.innerHTML = `
+                        <span class="font-medium text-slate-300 text-xs">${name}</span>
+                        <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${!isHidden ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}">
+                            ${!isHidden ? '🟢 กำลังเข้าเวร' : '🔴 ออกเวร'}
+                        </span>
+                    `;
+                }
                 listEl.appendChild(row);
             });
         }
 
-        // เมื่อน้อง อส. กดปุ่ม สีเขียว/สีแดง จะส่งคำสั่งไปล็อกที่ Google Apps Script ทันทีผ่าน JSONP
+        // เมื่อน้อง อส. กดปุ่ม สีเขียว/สีแดง จะตรวจสอบสิทธิ์และรหัส PIN ก่อนส่งคำสั่งเสมอ
         function toggleMyDutyStatus(targetPersonName) {
             const person = targetPersonName || mySelectedIdentity;
+
+            // 1. ป้องกันการกดแทนชื่อคนอื่นที่ไม่ได้เลือกเป็นตัวตนของเครื่องนี้
+            if (person !== mySelectedIdentity) {
+                alert(`⚠️ คุณกำลังใช้งานในชื่อ "${mySelectedIdentity}"\nไม่สามารถเปลี่ยนสถานะเข้าเวร/ออกเวรของ "${person}" ได้ครับ`);
+                return;
+            }
+
+            // 2. ตรวจสอบรหัส PIN 4 หลักประจำตัว (จำสิทธิ์ไว้ในเครื่องนั้นหลังยืนยันครั้งแรก)
+            const verifiedKey = `PIN_VERIFIED_${person}`;
+            if (localStorage.getItem(verifiedKey) !== "true") {
+                const expectedPin = PERSONNEL_PINS[person] || "1234";
+                const inputPin = prompt(`🔐 กรุณากรอกรหัส PIN 4 หลัก ของ ${person} เพื่อยืนยันตัวตน:`);
+                if (inputPin === null) return; // กดยกเลิก
+                if (inputPin.trim() !== expectedPin) {
+                    alert("❌ รหัส PIN ไม่ถูกต้อง ไม่สามารถเปลี่ยนสถานะได้ครับ");
+                    return;
+                }
+                localStorage.setItem(verifiedKey, "true");
+            }
+
             const currentHidden = (serverHiddenMap[person] === true);
             const nextHidden = !currentHidden;
 
