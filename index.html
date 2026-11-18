@@ -98,6 +98,19 @@
             animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
             z-index: -1;
         }
+        @keyframes personnel-ring {
+            0% { transform: scale(0.9); opacity: 0.9; }
+            80%, 100% { transform: scale(2.2); opacity: 0; }
+        }
+        .personnel-pulse::before {
+            content: '';
+            position: absolute;
+            inset: -5px;
+            border-radius: 50%;
+            background-color: #3b82f6;
+            animation: personnel-ring 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+            z-index: -1;
+        }
         .wind-arrow-icon {
             transition: transform 0.5s ease-out;
         }
@@ -117,9 +130,9 @@
             <div>
                 <div class="flex items-center gap-2">
                     <h1 class="text-base md:text-lg font-bold tracking-wide text-white">ศูนย์ปฏิบัติการเฝ้าระวังและควบคุมไฟป่า อำเภอสันทราย</h1>
-                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">ไฟป่า 2570 • v2.8</span>
+                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">ไฟป่า 2570 • v2.9 Real-Time</span>
                 </div>
-                <p class="text-xs text-slate-400">กองร้อยอาสารักษาดินแดนอำเภอสันทราย ที่ 15 • ระบบแผนที่ยุทธวิธี & ดาวเทียม NOAA (VIIRS)</p>
+                <p class="text-xs text-slate-400">กองร้อยอาสารักษาดินแดนอำเภอสันทราย ที่ 15 • ระบบแผนที่ยุทธวิธี & พิกัดกำลังพล Real-Time GPS</p>
             </div>
         </div>
 
@@ -237,19 +250,28 @@
                             <i class="fa-solid fa-eye text-emerald-400"></i> เปิด/ปิด ชั้นข้อมูลบนแผนที่
                         </h3>
 
+                        <!-- กล่องควบคุมพิกัดกำลังพล Real-Time -->
                         <div class="p-2.5 rounded-lg bg-slate-900/90 border border-blue-500/40 space-y-2">
                             <label class="flex items-center justify-between cursor-pointer">
                                 <div class="flex items-center gap-2.5">
                                     <input type="checkbox" id="chkPersonnel" checked onchange="updateLayers()" class="w-4 h-4 accent-orange-500 rounded">
-                                    <span class="text-xs font-semibold text-amber-300">พิกัดกำลังพล & เฝ้าระวัง (อส. 11 นาย)</span>
+                                    <span class="text-xs font-semibold text-amber-300">พิกัดกำลังพล Real-Time (อส. 11 นาย)</span>
                                 </div>
-                                <span class="w-3 h-3 rounded-full bg-blue-500 ring-2 ring-blue-400/40 animate-pulse"></span>
+                                <span class="w-3 h-3 rounded-full bg-emerald-400 ring-2 ring-emerald-400/40 animate-ping"></span>
                             </label>
-                            <div class="flex items-start justify-between text-[11px] pl-6 gap-2">
+                            <div class="flex items-center justify-between text-[11px] pl-6 gap-2">
+                                <span id="gpsLiveBadge" class="text-sky-400 font-medium">📡 ระบบซิงค์พิกัดทุก 5 วินาที</span>
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <button type="button" onclick="forceSendMyRealTimeGPS(true)" class="text-emerald-400 hover:text-emerald-300 underline flex items-center gap-1">
+                                        <i class="fa-solid fa-satellite-dish"></i> ส่งพิกัดฉัน
+                                    </button>
+                                    <button type="button" onclick="zoomToPersonnel()" class="text-sky-400 hover:text-sky-300 underline flex items-center gap-1">
+                                        <i class="fa-solid fa-location-crosshairs"></i> ซูมดูหมุด
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="pl-6 text-[11px]">
                                 <span id="personnelStatusText" class="text-emerald-400 font-medium">• กำลังโหลดรายชื่อกำลังพลออนไลน์...</span>
-                                <button type="button" onclick="zoomToPersonnel()" class="text-sky-400 hover:text-sky-300 underline flex items-center gap-1 shrink-0">
-                                    <i class="fa-solid fa-location-crosshairs"></i> ซูมหาหมุด
-                                </button>
                             </div>
                             <div class="pl-6 pt-1 flex flex-wrap gap-1.5">
                                 <button type="button" onclick="openPrivacyModal()" class="w-full py-1.5 px-2.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/40 text-blue-300 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition">
@@ -556,7 +578,7 @@
                     </div>
                     <div>
                         <h3 class="text-sm font-bold text-white">ตั้งค่าความเป็นส่วนตัว & สถานะเข้าเวร/ออกเวร (อส. 11 นาย)</h3>
-                        <p class="text-[11px] text-slate-400">ล็อกสิทธิ์ด้วยรหัส PIN 4 หลักประจำตัว เปลี่ยนสถานะและตั้งรหัสใหม่ได้เฉพาะชื่อของตนเอง</p>
+                        <p class="text-[11px] text-slate-400">ล็อกสิทธิ์ด้วยรหัส PIN 4 หลักประจำตัว พร้อมระบบส่งพิกัด Real-Time GPS</p>
                     </div>
                 </div>
                 <button onclick="closeModal('privacyModal')" class="text-slate-400 hover:text-white">
@@ -567,12 +589,11 @@
             <div class="overflow-y-auto space-y-3 pr-1 text-xs">
                 <div class="p-3 rounded-xl bg-blue-950/50 border border-blue-500/30 text-slate-200 space-y-1.5 leading-relaxed">
                     <div class="font-bold text-sky-400 flex items-center gap-1.5">
-                        <i class="fa-solid fa-mobile-screen-button"></i> วิธีใช้งานระบบเข้าเวร/ออกเวร & ตั้งรหัส PIN
+                        <i class="fa-solid fa-satellite-dish"></i> ระบบติดตามพิกัด Real-Time GPS อัตโนมัติ (ใหม่)
                     </div>
                     <p class="text-[11px] text-slate-300">
-                        1. เลือกชื่อตัวเองจากแถบด้านล่างของแผนที่ แล้วกดปุ่มสีเขียว/สีแดง พร้อมกรอกรหัส PIN 4 หลักประจำตัวครั้งแรก<br>
-                        2. หากต้องการเปลี่ยนรหัส PIN ใหม่ด้วยตัวเอง ให้กดปุ่ม <b class="text-amber-300">🔑 เปลี่ยน PIN</b> ที่แถบด้านล่าง<br>
-                        3. เมื่อออกเวร ให้แตะไอคอนโหมดมุมขวาบนในแอป OwnTracks แล้วเปลี่ยนเป็นโหมด <b class="text-amber-300">Quiet (หยุดส่งพิกัด)</b> ด้วย
+                        1. เมื่อเลือกชื่อตัวเองและอยู่ในสถานะ <b class="text-emerald-400">🟢 เข้าเวร</b> หน้าเว็บจะดึงพิกัด GPS ปัจจุบันจากมือถือและอัปเดตหมุดแบบ Real-Time ทันทีเมื่อเคลื่อนที่ (หรือกดปุ่ม <b class="text-sky-300">📡 อัปเดตพิกัด</b> ด้านล่าง)<br>
+                        2. ในแอป OwnTracks แนะนำให้กดโหมดมุมขวาบนเป็น <b class="text-amber-300">Move (ส่งพิกัดต่อเนื่อง)</b> ขณะออกปฏิบัติหน้าที่ และเปลี่ยนเป็น <b class="text-amber-300">Quiet</b> เมื่อออกเวร
                     </p>
                 </div>
 
@@ -807,7 +828,7 @@
         ];
 
         // ============================================================================
-        // 4. ตัวแปรระบบแผนที่ Leaflet, เข็มทิศ และระบบควบคุมสถานะเข้าเวร/ออกเวรรายบุคคล
+        // 4. ตัวแปรระบบแผนที่ Leaflet, เข็มทิศ และระบบพิกัดกำลังพล Real-Time GPS
         // ============================================================================
         let map;
         let baseMaps = {};
@@ -824,6 +845,11 @@
         let currentPersonnelLatLng = [18.848664, 99.045397];
         let personnelMarker = null;
         let personnelMarkers = {};
+
+        // เก็บพิกัดสด (Real-Time GPS Override) เพื่อไม่ให้พิกัดเก่าจากเซิร์ฟเวอร์ทับพิกัดปัจจุบัน
+        let localRealtimeOverrides = JSON.parse(localStorage.getItem("LOCAL_RT_OVERRIDES") || "{}");
+        let browserWatchId = null;
+        let lastSentGpsTime = 0;
 
         // URL ของ Google Apps Script
         const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbzflA4RMck9vW5fYyDhRgUUPaEnuHGkZGrVvmBy2lG8ofA8kMAivMMWW1BPoczPTs0Q/exec";
@@ -861,7 +887,7 @@
         let mySelectedIdentity = localStorage.getItem("MY_OS_IDENTITY") || "11-Bel";
         let serverHiddenMap = JSON.parse(localStorage.getItem("SERVER_HIDDEN_MAP") || "{}");
 
-        // ฟังก์ชันสลับมุมมอง Desktop / มือถือ (ปรับ Viewport จริงให้เห็นทั้งหน้าจอเหมือนคอมพิวเตอร์)
+        // ฟังก์ชันสลับมุมมอง Desktop / มือถือ
         let isDesktopMode = false;
         function toggleDesktopMode() {
             isDesktopMode = !isDesktopMode;
@@ -913,8 +939,10 @@
             renderTambonSummaryBars();
             fetchAllWeather();
 
+            // ดึงข้อมูลพิกัดกำลังพลแบบ Real-Time ทุกๆ 5 วินาที + เปิด GPS ติดตามสด
             loadPersonnelLocations();
-            setInterval(loadPersonnelLocations, 8000);
+            setInterval(loadPersonnelLocations, 5000);
+            startBrowserRealTimeGPSTracking();
 
             setTimeout(() => {
                 if (map) map.invalidateSize();
@@ -925,6 +953,160 @@
                 document.getElementById("gistdaApiKeyInput").value = savedKey;
             }
         };
+
+        // ============================================================================
+        // 4.0 ระบบติดตามพิกัด GPS แบบ Real-Time จากมือถือโดยตรง (แก้ปัญหาหมุดค้างที่กองร้อย)
+        // ============================================================================
+        async function getDeviceBatteryLevel() {
+            try {
+                if (navigator.getBattery) {
+                    const b = await navigator.getBattery();
+                    return Math.round(b.level * 100);
+                }
+            } catch (e) {}
+            return 100;
+        }
+
+        function startBrowserRealTimeGPSTracking() {
+            if (!("geolocation" in navigator)) return;
+            if (browserWatchId !== null) {
+                navigator.geolocation.clearWatch(browserWatchId);
+            }
+
+            browserWatchId = navigator.geolocation.watchPosition(
+                async function(pos) {
+                    // ส่งเฉพาะเมื่อเจ้าตัวอยู่ในสถานะ "กำลังเข้าเวร"
+                    if (serverHiddenMap[mySelectedIdentity] === true) return;
+
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    const now = Date.now();
+                    const batt = await getDeviceBatteryLevel();
+                    const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + " น. (GPS สด)";
+
+                    // บันทึกพิกัดสดของตัวเองและวาดหมุดบนแผนที่ทันทีแบบ Real-Time
+                    localRealtimeOverrides[mySelectedIdentity] = {
+                        lat: lat,
+                        lng: lng,
+                        name: mySelectedIdentity,
+                        batt: batt,
+                        time: timeStr,
+                        status: "ปฏิบัติงาน (Real-Time GPS)",
+                        ts: now
+                    };
+                    localStorage.setItem("LOCAL_RT_OVERRIDES", JSON.stringify(localRealtimeOverrides));
+
+                    updatePersonnelMarkerOnMap(lat, lng, mySelectedIdentity, timeStr, batt, "ปฏิบัติงาน (Real-Time GPS)");
+
+                    const badge = document.getElementById("gpsLiveBadge");
+                    if (badge) {
+                        badge.innerHTML = `<span class="text-emerald-400 font-semibold">🟢 GPS สด: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>`;
+                    }
+
+                    // ซิงค์พิกัดใหม่ขึ้น Google Apps Script ทุกๆ 10 วินาที หรือเมื่อเคลื่อนที่
+                    if (now - lastSentGpsTime > 10000) {
+                        lastSentGpsTime = now;
+                        pushLocationToAppsScript(mySelectedIdentity, lat, lng, batt);
+                    }
+                },
+                function(err) {
+                    console.debug("GPS watch waiting:", err.message);
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 10000
+                }
+            );
+        }
+
+        // ปุ่มบังคับดึงพิกัด GPS ปัจจุบันแล้วซูมไปหาทันที
+        function forceSendMyRealTimeGPS(shouldZoom) {
+            if (!("geolocation" in navigator)) {
+                alert("⚠️ อุปกรณ์ของคุณไม่รองรับการดึงพิกัด GPS");
+                return;
+            }
+            if (serverHiddenMap[mySelectedIdentity] === true) {
+                alert(`⚠️ ขณะนี้ "${mySelectedIdentity}" อยู่ในสถานะออกเวร (ซ่อนหมุด)\nกรุณากดปุ่มสลับเป็น "🟢 เข้าเวร" ก่อนอัปเดตพิกัดครับ`);
+                return;
+            }
+
+            const badge = document.getElementById("gpsLiveBadge");
+            if (badge) badge.innerHTML = `<span class="text-amber-300"><i class="fa-solid fa-spinner fa-spin"></i> กำลังจับสัญญาณดาวเทียม GPS...</span>`;
+
+            navigator.geolocation.getCurrentPosition(
+                async function(pos) {
+                    const lat = pos.coords.latitude;
+                    const lng = pos.coords.longitude;
+                    const batt = await getDeviceBatteryLevel();
+                    const timeStr = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + " น. (GPS สด)";
+
+                    localRealtimeOverrides[mySelectedIdentity] = {
+                        lat: lat,
+                        lng: lng,
+                        name: mySelectedIdentity,
+                        batt: batt,
+                        time: timeStr,
+                        status: "ปฏิบัติงาน (Real-Time GPS)",
+                        ts: Date.now()
+                    };
+                    localStorage.setItem("LOCAL_RT_OVERRIDES", JSON.stringify(localRealtimeOverrides));
+
+                    updatePersonnelMarkerOnMap(lat, lng, mySelectedIdentity, timeStr, batt, "ปฏิบัติงาน (Real-Time GPS)");
+                    pushLocationToAppsScript(mySelectedIdentity, lat, lng, batt);
+
+                    if (badge) badge.innerHTML = `<span class="text-emerald-400 font-bold">✅ อัปเดตพิกัดล่าสุดสำเร็จ (${timeStr})</span>`;
+
+                    if (shouldZoom && map) {
+                        map.flyTo([lat, lng], 16, { duration: 1.0 });
+                        setTimeout(() => {
+                            if (personnelMarkers[mySelectedIdentity]) {
+                                personnelMarkers[mySelectedIdentity].openPopup();
+                            }
+                        }, 1000);
+                    }
+                },
+                function(err) {
+                    alert("⚠️ ไม่สามารถดึงพิกัด GPS ได้ กรุณาเปิด Location / ตำแหน่งที่ตั้ง บนมือถือแล้วลองอีกครั้งครับ");
+                    if (badge) badge.innerHTML = `<span class="text-red-400">⚠️ กรุณาเปิด GPS บนมือถือ</span>`;
+                },
+                { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+            );
+        }
+
+        // ส่งพิกัดใหม่ขึ้น Google Apps Script ทั้งแบบ POST (มาตรฐาน OwnTracks) และแบบ GET (JSONP)
+        function pushLocationToAppsScript(personName, lat, lng, batt) {
+            const tidCode = personName.substring(0, 2);
+            const payload = {
+                _type: "location",
+                tid: tidCode,
+                name: personName,
+                user: personName,
+                lat: lat,
+                lon: lng,
+                lng: lng,
+                batt: batt,
+                battery: batt,
+                tst: Math.floor(Date.now() / 1000),
+                status: "กำลังเข้าเวร (Real-Time GPS)"
+            };
+
+            // 1. ส่งผ่าน POST (เข้าฟังก์ชัน doPost ของ OwnTracks ใน Apps Script ทันที)
+            fetch(GAS_WEBAPP_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload)
+            }).catch(() => {});
+
+            // 2. ส่งผ่าน GET พารามิเตอร์เผื่อกรณี doGet รองรับการอัปเดตพิกัด
+            const oldPush = document.getElementById("gasPushLocScript");
+            if (oldPush) oldPush.remove();
+            const s = document.createElement("script");
+            s.id = "gasPushLocScript";
+            s.src = `${GAS_WEBAPP_URL}?action=update_location&name=${encodeURIComponent(personName)}&tid=${encodeURIComponent(tidCode)}&lat=${lat}&lng=${lng}&lon=${lng}&battery=${batt}&batt=${batt}&callback=handleOwnTracksJsonpResponse&t=${Date.now()}`;
+            document.body.appendChild(s);
+        }
 
         // ============================================================================
         // 4.1 สร้างหน้าปัดเข็มทิศยุทธวิธีและทิศทางลม + ปุ่มลัดสลับโหมด Desktop บนแผนที่
@@ -977,7 +1159,7 @@
         }
 
         // ============================================================================
-        // 4.2 สร้างแถบปุ่มเลือกชื่อ อส. และกดสลับ 🟢 เข้าเวร / 🔴 ออกเวร + 🔑 เปลี่ยน PIN
+        // 4.2 สร้างแถบปุ่มเลือกชื่อ อส. + สลับเข้าเวร/ออกเวร + อัปเดตพิกัดสด + เปลี่ยน PIN
         // ============================================================================
         function createPersonnelDutyBarUI() {
             if (!map) return;
@@ -985,7 +1167,7 @@
                 options: { position: 'bottomleft' },
                 onAdd: function() {
                     const container = L.DomUtil.create('div', 'leaflet-bar');
-                    container.style.cssText = "background: rgba(15, 23, 42, 0.95); border: 1px solid #475569; border-radius: 12px; padding: 6px 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); backdrop-filter: blur(8px); pointer-events: auto; margin-bottom: 6px; max-width: 250px;";
+                    container.style.cssText = "background: rgba(15, 23, 42, 0.95); border: 1px solid #475569; border-radius: 12px; padding: 6px 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; box-shadow: 0 8px 20px rgba(0,0,0,0.6); backdrop-filter: blur(8px); pointer-events: auto; margin-bottom: 6px; max-width: 265px;";
 
                     let optionsHtml = "";
                     Object.values(PERSONNEL_ROSTER).forEach(name => {
@@ -1004,8 +1186,11 @@
                         <button id="btnToggleMyDuty" onclick="toggleMyDutyStatus()" style="flex: 1; padding: 5px 8px; border: 1.5px solid #ffffff; border-radius: 7px; font-weight: 700; font-size: 11px; cursor: pointer; transition: 0.2s; color: #ffffff; background-color: #16a34a;">
                             🟢 กำลังเข้าเวร
                         </button>
-                        <button onclick="changeMyPinCode()" style="padding: 5px 8px; border: 1px solid #64748b; border-radius: 7px; font-weight: 600; font-size: 11px; cursor: pointer; color: #cbd5e1; background-color: #1e293b;" title="เปลี่ยนรหัส PIN ของฉัน">
-                            🔑 เปลี่ยน PIN
+                        <button onclick="forceSendMyRealTimeGPS(true)" style="padding: 5px 7px; border: 1px solid #38bdf8; border-radius: 7px; font-weight: 700; font-size: 10px; cursor: pointer; color: #38bdf8; background-color: #0f172a;" title="ส่งพิกัด GPS ปัจจุบันของฉันทันที">
+                            📡 อัปเดตพิกัด
+                        </button>
+                        <button onclick="changeMyPinCode()" style="padding: 5px 7px; border: 1px solid #64748b; border-radius: 7px; font-weight: 600; font-size: 10px; cursor: pointer; color: #cbd5e1; background-color: #1e293b;" title="เปลี่ยนรหัส PIN ของฉัน">
+                            🔑 PIN
                         </button>
                     `;
                     L.DomEvent.disableClickPropagation(container);
@@ -1020,6 +1205,7 @@
             mySelectedIdentity = newName;
             localStorage.setItem("MY_OS_IDENTITY", newName);
             updateDutyButtonAppearance();
+            startBrowserRealTimeGPSTracking();
         }
 
         function updateDutyButtonAppearance() {
@@ -1131,6 +1317,9 @@
                 layerPersonnel.removeLayer(personnelMarkers[person]);
                 if (map) map.removeLayer(personnelMarkers[person]);
                 delete personnelMarkers[person];
+            } else if (!nextHidden) {
+                // เมื่อกลับมาเข้าเวร ให้ดึงพิกัด GPS ปัจจุบันส่งทันที
+                forceSendMyRealTimeGPS(true);
             }
 
             const oldToggle = document.getElementById("gasToggleScript");
@@ -1201,6 +1390,16 @@
             return combined.replace(/^(\d+)([a-zA-Zก-๙]+)/, '$1-$2') || "11-Bel";
         }
 
+        function parseRecordTimestamp(row, index) {
+            const rawTs = row.tst || row.timestamp || row.ts || row.time || row.updated_at || "";
+            if (typeof rawTs === "number") {
+                return rawTs < 10000000000 ? rawTs * 1000 : rawTs;
+            }
+            const parsed = Date.parse(rawTs);
+            if (!isNaN(parsed)) return parsed;
+            return index; // ถ้าไม่มีฟิลด์เวลาที่แปลงได้ ให้ใช้ลำดับแถวล่าสุดแทน
+        }
+
         function updatePersonnelMarkerOnMap(lat, lng, rawName, timeStr, batt, status, rawTid) {
             if (!lat || !lng || isNaN(lat) || isNaN(lng)) return;
             const name = normalizePersonnelId(rawName, rawTid);
@@ -1226,16 +1425,19 @@
             });
 
             const popupHtml = `
-                <div class="p-1.5 min-w-[215px] space-y-1.5 text-xs">
+                <div class="p-1.5 min-w-[225px] space-y-1.5 text-xs">
                     <div class="flex items-center justify-between">
-                        <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold text-[10px]">OwnTracks Live</span>
+                        <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">🟢 Real-Time Live</span>
                         <span class="text-[11px] text-emerald-400 font-semibold"><i class="fa-solid fa-battery-three-quarters mr-1"></i>${batt || '--'}%</span>
                     </div>
                     <div class="text-sm font-bold text-white pt-0.5">${name}</div>
                     <div class="text-xs text-slate-300"><b>สถานะ:</b> ${status || 'กำลังเข้าเวร'}</div>
-                    <div class="text-[11px] text-slate-400"><b>พิกัด:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
+                    <div class="text-[11px] text-amber-300 font-mono"><b>พิกัดจริง:</b> ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
                     <div class="text-[11px] text-slate-400"><b>อัปเดต:</b> ${timeStr || 'ล่าสุด'}</div>
-                    <div class="pt-1 border-t border-slate-700">
+                    <div class="pt-1 border-t border-slate-700 flex flex-col gap-1">
+                        <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="w-full py-1 px-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-[11px] text-center no-underline">
+                            🗺️ เปิดดูจุดนี้ใน Google Maps
+                        </a>
                         <button onclick="toggleMyDutyStatus('${name}')" class="w-full py-1.5 px-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-[11px] transition">
                             🔴 กดซ่อนหมุด / ออกเวร (${name})
                         </button>
@@ -1275,30 +1477,44 @@
             const records = Array.isArray(data) ? data : (data.records || data.data || []);
             const latestByPerson = {};
 
-            records.forEach(row => {
+            records.forEach((row, idx) => {
                 if (!row) return;
                 let lat = parseFloat(row.lat ?? row.Lat ?? row.latitude);
                 let lng = parseFloat(row.lng ?? row.lon ?? row.Lng ?? row.longitude);
                 let rawName = row.name || row.Name || row.user || "";
                 let rawTid = row.tid || "";
-                let batt = (row.battery !== "" && row.battery !== undefined && row.battery !== null) ? row.battery : 100;
+                let batt = (row.battery !== "" && row.battery !== undefined && row.battery !== null) ? row.battery : (row.batt ?? 100);
                 let time = row.time || "ล่าสุด";
                 let status = row.status || "ปฏิบัติงาน (OwnTracks)";
                 let hiddenFlag = row.hidden === true;
+                let rowTs = parseRecordTimestamp(row, idx);
 
                 if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
                     const standardName = normalizePersonnelId(rawName, rawTid);
-                    latestByPerson[standardName] = {
-                        lat: lat,
-                        lng: lng,
-                        name: standardName,
-                        batt: batt,
-                        time: time,
-                        status: status,
-                        hidden: hiddenFlag || (serverHiddenMap[standardName] === true)
-                    };
+                    // เลือกเฉพาะพิกัดที่มีเวลา (Timestamp) ใหม่ล่าสุดเสมอ ป้องกันพิกัดเก่าที่กองร้อยทับพิกัดใหม่
+                    if (!latestByPerson[standardName] || rowTs >= latestByPerson[standardName].ts) {
+                        latestByPerson[standardName] = {
+                            lat: lat,
+                            lng: lng,
+                            name: standardName,
+                            batt: batt,
+                            time: time,
+                            status: status,
+                            ts: rowTs,
+                            hidden: hiddenFlag || (serverHiddenMap[standardName] === true)
+                        };
+                    }
                 }
             });
+
+            // ถ้าระบบมีพิกัด GPS สดจากเครื่องตัวเองที่เพิ่งอัปเดตภายใน 2 นาที ให้ใช้พิกัดสดทันทีโดยไม่รอเซิร์ฟเวอร์
+            const myOverride = localRealtimeOverrides[mySelectedIdentity];
+            if (myOverride && (Date.now() - myOverride.ts < 120000) && serverHiddenMap[mySelectedIdentity] !== true) {
+                latestByPerson[mySelectedIdentity] = {
+                    ...myOverride,
+                    hidden: false
+                };
+            }
 
             Object.keys(personnelMarkers).forEach(existingName => {
                 if (!latestByPerson[existingName] || latestByPerson[existingName].hidden || serverHiddenMap[existingName] === true) {
@@ -1337,7 +1553,7 @@
 
             const script = document.createElement("script");
             script.id = "gasJsonpScript";
-            script.src = `${GAS_WEBAPP_URL}?callback=handleOwnTracksJsonpResponse&t=${Date.now()}`;
+            script.src = `${GAS_WEBAPP_URL}?callback=handleOwnTracksJsonpResponse&nocache=${Date.now()}_${Math.random()}`;
             script.onerror = function () {
                 const statusEl = document.getElementById("personnelStatusText");
                 if (statusEl) {
