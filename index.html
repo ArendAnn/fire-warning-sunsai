@@ -38,7 +38,7 @@
 
     <style>
         html, body {
-            height: 100dvh;
+            height: 100%;
             margin: 0;
             padding: 0;
             font-family: 'Sarabun', 'Inter', sans-serif;
@@ -141,7 +141,7 @@
         }
     </style>
 </head>
-<body class="h-[100dvh] flex flex-col select-none">
+<body class="h-full flex flex-col select-none">
 
     <!-- Top Navigation Bar -->
     <header class="bg-slate-900/95 border-b border-slate-800 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3 z-30 shadow-lg shrink-0">
@@ -152,7 +152,7 @@
             <div>
                 <div class="flex items-center gap-2">
                     <h1 class="text-base md:text-lg font-bold tracking-wide text-white">ศูนย์ปฏิบัติการเฝ้าระวังและควบคุมไฟป่า อำเภอสันทราย</h1>
-                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">ไฟป่า 2570 • v3.0 Real-Time</span>
+                    <span class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">ไฟป่า 2570 • v3.1 Real-Time</span>
                 </div>
                 <p class="text-xs text-slate-400">กองร้อยอาสารักษาดินแดนอำเภอสันทราย ที่ 15 • ระบบแผนที่ยุทธวิธี & พิกัดกำลังพล Real-Time GPS</p>
             </div>
@@ -482,57 +482,54 @@
         </aside>
 
         <!-- Main Interactive Map -->
-        <main class="flex-1 relative h-full">
+        <main class="flex-1 relative h-full overflow-hidden">
             <div id="map" class="w-full h-full z-10"></div>
-        </main>
-    </div>
 
-    <!-- ========================================================================= -->
-    <!-- FLOATING BOTTOM-RIGHT DOCK: กล่องสัญลักษณ์ + ปุ่มยืนยันพิกัด + ปุ่มรีเฟรช -->
-    <!-- ลอยติดมุมขวาล่างตลอดเวลา เห็นชัดเจนทั้งโหมดมือถือและโหมด Desktop -->
-    <!-- ========================================================================= -->
-    <div id="floatingActionDock" class="fixed bottom-4 right-3 z-40 flex flex-col items-end gap-2 pointer-events-auto">
-        
-        <!-- กล่องสัญลักษณ์แผนที่ (ย่อ/ขยายได้) -->
-        <div id="mapLegendBox" class="bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-xl p-2.5 shadow-xl max-w-[270px] text-[11px] space-y-1.5 transition-all">
-            <div class="font-bold text-slate-200 flex items-center justify-between gap-2">
-                <span class="truncate">สัญลักษณ์แผนที่ (ไฟป่า 2570)</span>
-                <div class="flex items-center gap-1.5 shrink-0">
-                    <button onclick="fitAllBounds()" class="text-sky-400 hover:underline text-[10px]">ดูทั้งอำเภอ</button>
-                    <button onclick="toggleLegendCollapse()" id="legendToggleBtn" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-600 text-[10px] font-bold" title="ย่อ/ขยาย">
-                        ➕ ขยาย
+            <!-- กล่องสัญลักษณ์ + ปุ่มรีเฟรช + ปุ่มยืนยันพิกัด (ยึดมุมขวาล่างในกรอบแผนที่ แสดงผลได้ทั้ง iPhone และ Android) -->
+            <div id="floatingActionDock" class="absolute bottom-4 right-3 z-[1000] flex flex-col items-end gap-2 pointer-events-auto">
+                
+                <!-- กล่องสัญลักษณ์แผนที่ (ย่อ/ขยายได้) -->
+                <div id="mapLegendBox" class="bg-slate-900/95 backdrop-blur-md border border-slate-700/80 rounded-xl p-2.5 shadow-xl max-w-[270px] text-[11px] space-y-1.5 transition-all">
+                    <div class="font-bold text-slate-200 flex items-center justify-between gap-2">
+                        <span class="truncate">สัญลักษณ์แผนที่ (ไฟป่า 2570)</span>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button onclick="fitAllBounds()" class="text-sky-400 hover:underline text-[10px]">ดูทั้งอำเภอ</button>
+                            <button onclick="toggleLegendCollapse()" id="legendToggleBtn" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-600 text-[10px] font-bold" title="ย่อ/ขยาย">
+                                ➕ ขยาย
+                            </button>
+                        </div>
+                    </div>
+                    <div id="legendContent" class="hidden grid grid-cols-2 gap-x-3 gap-y-1 pt-1 border-t border-slate-800">
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500 border border-white"></span> <span>ฐานปฏิบัติการ</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 border border-white"></span> <span>จุดเสี่ยง/ยุทธวิธี</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white"></span> <span>จุดเฝ้าระวัง</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-3.5 h-1 bg-cyan-400 rounded"></span> <span>เส้นทางเข้าถึง</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span> <span>ก.พ. (1 จุด)</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> <span>มี.ค. (90 จุด)</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span> <span>เม.ย. (35 จุด)</span></div>
+                        <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> <span>พ.ค. (2 จุด)</span></div>
+                    </div>
+                </div>
+
+                <!-- แถวปุ่มหลักมุมล่างขวา: ปุ่มรีเฟรช + ปุ่มยืนยันพิกัดของฉัน -->
+                <div class="flex items-center gap-2">
+                    <!-- ปุ่ม Refresh หน้าจอ (ล้างแคช + โหลดข้อมูลใหม่) -->
+                    <button onclick="hardRefreshPage()" class="desktop-big-btn px-3.5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white border-2 border-white/80 shadow-2xl shadow-sky-900/60 font-bold text-xs flex items-center gap-2 transition" title="รีเฟรชหน้าจอและโหลดพิกัดใหม่">
+                        <i class="fa-solid fa-arrows-rotate text-sm"></i>
+                        <span>รีเฟรช</span>
+                    </button>
+
+                    <!-- ปุ่มยืนยันพิกัดของฉัน (Real-Time GPS) -->
+                    <button onclick="forceSendMyRealTimeGPS(true)" class="desktop-big-btn px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white border-2 border-white shadow-2xl shadow-emerald-900/70 font-bold text-xs flex items-center gap-2 transition" title="ยืนยันและส่งพิกัด GPS ปัจจุบันของฉัน">
+                        <i class="fa-solid fa-location-crosshairs text-base animate-pulse"></i>
+                        <div class="text-left leading-tight">
+                            <div>ยืนยันพิกัดของฉัน</div>
+                            <div id="bigBtnPersonName" class="btn-subtext text-[10px] font-normal text-emerald-100">กำลังโหลด...</div>
+                        </div>
                     </button>
                 </div>
             </div>
-            <div id="legendContent" class="hidden grid grid-cols-2 gap-x-3 gap-y-1 pt-1 border-t border-slate-800">
-                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500 border border-white"></span> <span>ฐานปฏิบัติการ</span></div>
-                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-500 border border-white"></span> <span>จุดเสี่ยง/ยุทธวิธี</span></div>
-                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white"></span> <span>จุดเฝ้าระวัง</span></div>
-                <div class="flex items-center gap-1.5"><span class="w-3.5 h-1 bg-cyan-400 rounded"></span> <span>เส้นทางเข้าถึง</span></div>
-                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span> <span>ก.พ. (1 จุด)</span></div>
-                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-red-500"></span> <span>มี.ค. (90 จุด)</span></div>
-                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span> <span>เม.ย. (35 จุด)</span></div>
-                <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span> <span>พ.ค. (2 จุด)</span></div>
-            </div>
-        </div>
-
-        <!-- แถวปุ่มหลักมุมล่างขวา: ปุ่มรีเฟรช + ปุ่มยืนยันพิกัดของฉัน -->
-        <div class="flex items-center gap-2">
-            <!-- ปุ่ม Refresh หน้าจอ (ล้างแคช + โหลดข้อมูลใหม่) -->
-            <button onclick="hardRefreshPage()" class="desktop-big-btn px-3.5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white border-2 border-white/80 shadow-2xl shadow-sky-900/60 font-bold text-xs flex items-center gap-2 transition" title="รีเฟรชหน้าจอและโหลดพิกัดใหม่">
-                <i class="fa-solid fa-arrows-rotate text-sm"></i>
-                <span>รีเฟรช</span>
-            </button>
-
-            <!-- ปุ่มยืนยันพิกัดของฉัน (Real-Time GPS) -->
-            <button onclick="forceSendMyRealTimeGPS(true)" class="desktop-big-btn px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white border-2 border-white shadow-2xl shadow-emerald-900/70 font-bold text-xs flex items-center gap-2 transition" title="ยืนยันและส่งพิกัด GPS ปัจจุบันของฉัน">
-                <i class="fa-solid fa-location-crosshairs text-base animate-pulse"></i>
-                <div class="text-left leading-tight">
-                    <div>ยืนยันพิกัดของฉัน</div>
-                    <div id="bigBtnPersonName" class="btn-subtext text-[10px] font-normal text-emerald-100">กำลังโหลด...</div>
-                </div>
-            </button>
-        </div>
+        </main>
     </div>
 
     <!-- MODAL 1: GISTDA API CONNECTION -->
